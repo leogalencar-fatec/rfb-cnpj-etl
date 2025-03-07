@@ -1,0 +1,14 @@
+database:
+  host: localhost
+  port: 5432
+  username: your_username
+  password: your_password
+  database_name: your_database
+
+data_source:
+  url: https://www.gov.br/data-source-url
+  zip_file_path: /path/to/downloaded/zipfile.zip
+
+logging:
+  log_file: /path/to/logfile.log
+  log_level: INFO
