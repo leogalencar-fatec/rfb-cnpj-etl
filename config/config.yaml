@@ -6,8 +6,12 @@ database:
   database_name: your_database
 
 data_source:
-  url: https://www.gov.br/data-source-url
+  base_url: https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
   zip_file_path: /path/to/downloaded/zipfile.zip
+
+paths:
+  download_path: data/zip/
+  extract_path: data/csv/
 
 logging:
   log_file: /path/to/logfile.log
