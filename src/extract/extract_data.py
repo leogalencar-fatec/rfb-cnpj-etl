@@ -182,7 +182,9 @@ def extract_data() -> list[str]:
       Exception: If no available months are found.
     """
 
-    # Downloading data
+    """DOWNLOADING DATA"""
+    
+    # Getting available months
     months = get_available_months()
     if not months:
         print("No available months found.")
@@ -202,11 +204,14 @@ def extract_data() -> list[str]:
     else:
         selected_month = months[0]
 
+    # Downloading data from selected month
     print(f"Downloading data for: {selected_month}")
     downloaded_files = download_all_zips(selected_month)
     print("Download complete!")
 
-    # Extracting zip files
+    """EXTRACTING ZIP FILES"""
+    
+    # Extract and add .csv for each file (see documentation)
     print("Extracting ZIP files...")
     extracted_files = extract_zip_files(downloaded_files, selected_month)
     print("Extraction complete!")

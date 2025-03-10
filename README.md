@@ -35,6 +35,13 @@ rfb-cnpj-etl
 - **Utils**: The `helpers.py` file contains utility functions used across the ETL process.
 - **Main**: The `main.py` file serves as the entry point for the ETL process.
 
+## Documentation Links
+- **Extract Documentation**: [Extract Data](docs/extract.md)
+- **Transform Documentation**: [Transform Data](docs/transform.md)
+- **Load Documentation**: [Load Data](docs/load.md)
+- **Utils Documentation**: [Utility Functions](docs/utils.md)
+- **Main Documentation**: [Main Process](docs/main.md)
+
 ## Configuration
 The `config.yaml` file contains configuration settings for the ETL process, including database connection details and URLs for the data source.
 
