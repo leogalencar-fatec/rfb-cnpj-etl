@@ -11,7 +11,6 @@ from urllib.parse import urljoin
 """
 
 TODO : generate logs for each operation
-TODO : Handle exceptions with try / except
 
 """
 
@@ -58,7 +57,11 @@ def request_retry_get(url: str, showAttempts: bool = False, **kwargs) -> request
 
 def get_available_months() -> list[str]:
     """Fetch available year-month directories from the Receita Federal website."""
-    response = request_retry_get(BASE_URL)
+    try:
+        response = request_retry_get(BASE_URL)
+    except requests.RequestException as e:
+        print(f"Failed to fetch available months: {e}")
+        return []
 
     soup = BeautifulSoup(response.text, "html.parser")
     links = [a["href"] for a in soup.find_all("a", href=True)]
@@ -75,8 +78,13 @@ def get_available_months() -> list[str]:
 def get_zip_files(month: str) -> list[str]:
     """Fetch all ZIP file URLs from a given month folder."""
     month_url = urljoin(BASE_URL, month + "/")
-    response = request_retry_get(month_url)
-    response.raise_for_status()
+    
+    try:
+        response = request_retry_get(month_url)
+    except requests.RequestException as e:
+        print(f"Failed to fetch all zip files from given month '{month}': {e}")
+        return []
+    
 
     soup = BeautifulSoup(response.text, "html.parser")
     zip_files = [
@@ -88,9 +96,12 @@ def get_zip_files(month: str) -> list[str]:
 
 def download_zip_file(url: str, save_path: str):
     """Download a ZIP file from the given URL."""
-    response = request_retry_get(url, stream=True)
-    response.raise_for_status()
-
+    try:
+        response = request_retry_get(url, stream=True)
+    except requests.RequestException as e:
+        print(f"Failed to download zip file from {url}: {e}")
+        raise
+    
     with open(save_path, "wb") as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
