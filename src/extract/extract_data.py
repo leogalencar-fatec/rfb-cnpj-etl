@@ -56,7 +56,16 @@ def request_retry_get(url: str, showAttempts: bool = False, **kwargs) -> request
 
 
 def get_available_months() -> list[str]:
-    """Fetch available year-month directories from the Receita Federal website."""
+    """
+    Fetch available year-month directories from the Receita Federal website.
+
+    Returns:
+        list[str]: A list of available year-month directories.
+
+    Raises:
+        requests.RequestException: If the request to fetch available months fails.
+    """
+    
     try:
         response = request_retry_get(BASE_URL)
     except requests.RequestException as e:
@@ -76,7 +85,19 @@ def get_available_months() -> list[str]:
 
 
 def get_zip_files(month: str) -> list[str]:
-    """Fetch all ZIP file URLs from a given month folder."""
+    """
+    Fetch all ZIP file URLs from a given month folder.
+
+    Args:
+        month (str): The year-month directory to fetch ZIP files from.
+
+    Returns:
+        list[str]: A list of URLs to the ZIP files.
+
+    Raises:
+        requests.RequestException: If the request to fetch ZIP files fails.
+    """
+    
     month_url = urljoin(BASE_URL, month + "/")
     
     try:
@@ -95,7 +116,17 @@ def get_zip_files(month: str) -> list[str]:
 
 
 def download_zip_file(url: str, save_path: str):
-    """Download a ZIP file from the given URL."""
+    """
+    Download a ZIP file from the given URL.
+
+    Args:
+        url (str): The URL of the ZIP file to download.
+        save_path (str): The path to save the downloaded ZIP file.
+
+    Raises:
+        requests.RequestException: If the request to download the ZIP file fails.
+    """
+    
     try:
         response = request_retry_get(url, stream=True)
     except requests.RequestException as e:
@@ -108,7 +139,15 @@ def download_zip_file(url: str, save_path: str):
 
 
 def download_all_zips(month: str):
-    """Download all ZIP files from a given month."""
+    """
+    Download all ZIP files from a given month.
+
+    Args:
+        month (str): The year-month directory to download ZIP files from.
+
+    Returns:
+        list[str]: A list of paths to the downloaded ZIP files.
+    """
     zip_urls = get_zip_files(month)[:1] # [:1] -> get only one file for testing
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
@@ -128,7 +167,16 @@ def download_all_zips(month: str):
 
 
 def clean_filename(filename: str) -> str:
-    """Clean the filename by adding .csv if missing and removing special characters."""
+    """
+    Clean the filename by adding .csv if missing and removing special characters.
+
+    Args:
+        filename (str): The original filename.
+
+    Returns:
+        str: The cleaned filename.
+    """
+    
     # Add .csv if missing
     if not filename.endswith(".csv"):
         filename += ".csv"
@@ -140,7 +188,17 @@ def clean_filename(filename: str) -> str:
 
 
 def extract_zip_files(zip_files, month) -> list[str]:
-    """Extract all ZIP files and return the list of cleaned extracted files."""
+    """
+    Extract all ZIP files and return the list of cleaned extracted files.
+
+    Args:
+        zip_files (list[str]): A list of paths to the ZIP files to extract.
+        month (str): The year-month directory to extract files to.
+
+    Returns:
+        list[str]: A list of paths to the extracted files.
+    """
+    
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
 
@@ -176,7 +234,7 @@ def extract_data() -> list[str]:
     4. Extracts the downloaded ZIP files.
 
     Returns:
-      list: A list of paths to the extracted files.
+      list[str]: A list of paths to the extracted files.
 
     Raises:
       Exception: If no available months are found.
