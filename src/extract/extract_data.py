@@ -22,7 +22,7 @@ DOWNLOAD_PATH = config["paths"]["download_path"]
 EXTRACT_PATH = config["paths"]["extract_path"]
 
 
-def get_availabe_months() -> list[str]:
+def get_available_months() -> list[str]:
     """Fetch available year-month directories from the Receita Federal website."""
     response = requests.get(BASE_URL, verify=False)
     response.raise_for_status()
@@ -83,7 +83,7 @@ def download_all_zips(month: str):
     return downloaded_files
 
 
-def extract_zip_files(zip_files, month):
+def extract_zip_files(zip_files, month) -> list[str]:
     """Extract all ZIP files and return the list of extracted files."""
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
@@ -119,7 +119,7 @@ def extract_data() -> list[str]:
     """
 
     # Downloading data
-    months = get_availabe_months()
+    months = get_available_months()
     if not months:
         print("No available months found.")
         raise Exception("No available months found.")
