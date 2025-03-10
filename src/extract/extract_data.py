@@ -1,15 +1,16 @@
 import os
 import re
 import requests
+import ssl
 import zipfile
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
 from utils.helpers import load_config
 from urllib.parse import urljoin
 
 """
 
 TODO : generate logs for each operation
-TODO : clear extracted filename for each file inside a zip
 TODO : Handle exceptions with try / except
 
 """
@@ -21,11 +22,43 @@ BASE_URL = config["data_source"]["base_url"]
 DOWNLOAD_PATH = config["paths"]["download_path"]
 EXTRACT_PATH = config["paths"]["extract_path"]
 
+# Create a session
+session = requests.Session()
+session_retries = 3
+
+
+def request_retry_get(url: str, showAttempts: bool = False, **kwargs) -> requests.Response:
+    """
+    Makes a GET request to the specified URL with retry logic.
+    Args:
+        url (str): The URL to send the GET request to.
+        showAttempts (bool, optional): If True, prints the attempt number and status. Defaults to False.
+        **kwargs: Additional arguments to pass to the `requests.get` method.
+    Returns:
+        requests.Response: The response object from the GET request.
+    Raises:
+        requests.RequestException: If the request fails after the specified number of retries.
+    """
+    
+    for attempt in range(session_retries):
+        try:
+            response = session.get(url, **kwargs)
+            response.raise_for_status()
+            
+            # Success
+            if showAttempts:
+                print(f"Attempt {attempt + 1} successful.\n")
+            return response
+        except requests.RequestException as e:
+            if showAttempts:
+                print(f"Attempt {attempt + 1} failed: {e}")
+            if attempt == session_retries - 1:
+                raise
+
 
 def get_available_months() -> list[str]:
     """Fetch available year-month directories from the Receita Federal website."""
-    response = requests.get(BASE_URL, verify=False)
-    response.raise_for_status()
+    response = request_retry_get(BASE_URL)
 
     soup = BeautifulSoup(response.text, "html.parser")
     links = [a["href"] for a in soup.find_all("a", href=True)]
@@ -42,7 +75,7 @@ def get_available_months() -> list[str]:
 def get_zip_files(month: str) -> list[str]:
     """Fetch all ZIP file URLs from a given month folder."""
     month_url = urljoin(BASE_URL, month + "/")
-    response = requests.get(month_url, verify=False)
+    response = request_retry_get(month_url)
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -55,7 +88,7 @@ def get_zip_files(month: str) -> list[str]:
 
 def download_zip_file(url: str, save_path: str):
     """Download a ZIP file from the given URL."""
-    response = requests.get(url, stream=True, verify=False)
+    response = request_retry_get(url, stream=True)
     response.raise_for_status()
 
     with open(save_path, "wb") as file:
@@ -65,7 +98,7 @@ def download_zip_file(url: str, save_path: str):
 
 def download_all_zips(month: str):
     """Download all ZIP files from a given month."""
-    zip_urls = get_zip_files(month)[:1]
+    zip_urls = get_zip_files(month)[:1] # [:1] -> get only one file for testing
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
 
@@ -83,8 +116,20 @@ def download_all_zips(month: str):
     return downloaded_files
 
 
+def clean_filename(filename: str) -> str:
+    """Clean the filename by adding .csv if missing and removing special characters."""
+    # Add .csv if missing
+    if not filename.endswith(".csv"):
+        filename += ".csv"
+    
+    # Remove special characters
+    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
+    
+    return filename
+
+
 def extract_zip_files(zip_files, month) -> list[str]:
-    """Extract all ZIP files and return the list of extracted files."""
+    """Extract all ZIP files and return the list of cleaned extracted files."""
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
 
@@ -92,10 +137,18 @@ def extract_zip_files(zip_files, month) -> list[str]:
 
     for zip_file in zip_files:
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
-            zip_ref.extractall(extract_path)
-            extracted_files.extend(
-                [os.path.join(extract_path, name) for name in zip_ref.namelist()]
-            )
+            for name in zip_ref.namelist():
+                cleaned_name = clean_filename(name)
+                cleaned_path = os.path.join(extract_path, cleaned_name)
+                if os.path.exists(cleaned_path):
+                    print(f"Skipping {cleaned_path}, already exists.")
+                else:
+                    with zip_ref.open(name) as source, open(cleaned_path, "wb") as target:
+                        target.write(source.read())
+                    print(f"Extracted and cleaned {name} to {cleaned_path}")
+                    
+                extracted_files.append(cleaned_path)
+                
             print(f"Extracted {zip_file} to {extract_path}")
 
     return extracted_files
