@@ -12,6 +12,7 @@ data_source:
 paths:
   download_path: data/zip/
   extract_path: data/csv/
+  transformed_path: data/csv/transformed/
 
 logging:
   log_file: /path/to/logfile.log

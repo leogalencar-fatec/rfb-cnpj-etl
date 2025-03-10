@@ -7,7 +7,7 @@ def main():
     raw_data = extract.extract_data()
     
     # # Step 2: Transform data
-    # transformed_data = transform.transform_data(raw_data)
+    transformed_data = transform.transform_data(raw_data)
     
     # # Step 3: Load data into the database
     # load.load_data(transformed_data)
