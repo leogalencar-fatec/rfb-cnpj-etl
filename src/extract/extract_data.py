@@ -1,7 +1,6 @@
 import os
 import re
 import requests
-import ssl
 import zipfile
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -148,7 +147,7 @@ def download_all_zips(month: str):
     Returns:
         list[str]: A list of paths to the downloaded ZIP files.
     """
-    zip_urls = get_zip_files(month)[:1] # [:1] -> get only one file for testing
+    zip_urls = get_zip_files(month)[2:3] # [:1] -> get only one file for testing
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
 
@@ -166,12 +165,13 @@ def download_all_zips(month: str):
     return downloaded_files
 
 
-def clean_filename(filename: str) -> str:
+def clean_filename(filename: str, zip_filename: str) -> str:
     """
     Clean the filename by adding .csv if missing and removing special characters.
 
     Args:
         filename (str): The original filename.
+        zip_filename (str): The name of the zip file to prepend to the filename.
 
     Returns:
         str: The cleaned filename.
@@ -180,6 +180,9 @@ def clean_filename(filename: str) -> str:
     # Add .csv if missing
     if not filename.endswith(".csv"):
         filename += ".csv"
+        
+    # Add zip_filename to the start of the filename
+    filename = f"{os.path.splitext(os.path.basename(zip_filename))[0]}_{filename}"
     
     # Remove special characters
     filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
@@ -207,7 +210,7 @@ def extract_zip_files(zip_files, month) -> list[str]:
     for zip_file in zip_files:
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             for name in zip_ref.namelist():
-                cleaned_name = clean_filename(name)
+                cleaned_name = clean_filename(name, zip_ref.filename)
                 cleaned_path = os.path.join(extract_path, cleaned_name)
                 if os.path.exists(cleaned_path):
                     print(f"Skipping {cleaned_path}, already exists.")
