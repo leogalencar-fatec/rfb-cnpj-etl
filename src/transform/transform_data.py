@@ -2,93 +2,15 @@ import csv
 import pandas as pd
 import os
 from utils.helpers import load_config
+from constants.table_fields import TABLE_FIELDS
+from constants.pandas_dtypes_map import PANDAS_DTYPES_MAP
+
 
 # Configuration
 config = load_config()
 EXTRACT_PATH = config["paths"]["extract_path"]
 TRANSFORMED_PATH = config["paths"]["transformed_path"]
 READ_CHUNK_SIZE = 10000
-
-
-# Constants
-FIELDS = {
-    "empresa": {
-        "cnpj": "str",
-        "razao_social": "str",
-        "codigo_natureza_juridica": "str",
-        "qualificacao_do_responsavel": "str",
-        "capital_social": "float",
-        "porte": "str",
-        "ente_federativo_responsavel": "str",
-    },
-    "estabelecimento": {
-        "cnpj_basico": "str",
-        "cnpj_ordem": "str",
-        "cnpj_dv": "str",
-        "identificador_matriz_filial": "str",
-        "nome_fantasia": "str",
-        "situacao_cadastral": "str",
-        "data_situacao_cadastral": "str",
-        "motivo_situacao_cadastral": "str",
-        "nome_cidade_exterior": "str",
-        "pais": "str",
-        "data_inicio_atividade": "str",
-        "cnae_fiscal": "str",
-        "cnae_fiscal_secundario": "str",
-        "tipo_logradouro": "str",
-        "logradouro": "str",
-        "numero": "str",
-        "complemento": "str",
-        "bairro": "str",
-        "cep": "str",
-        "uf": "str",
-        "municipio": "str",
-        "ddd_1": "str",
-        "telefone_1": "str",
-        "ddd_2": "str",
-        "telefone_2": "str",
-        "ddd_fax": "str",
-        "telefone_fax": "str",
-        "correio_eletronico": "str",
-        "situacao_especial": "str",
-        "data_situacao_especial": "str",
-    },
-    "simples": {
-        "cnpj_basico": "str",
-        "opcao_pelo_simples": "str",
-        "data_opcao_pelo_simples": "str",
-        "data_exclusao_pelo_simples": "str",
-        "opcao_pelo_mei": "str",
-        "data_opcao_pelo_mei": "str",
-        "data_exclusao_pelo_mei": "str",
-    },
-    "socio": {
-        "cnpj_basico": "str",
-        "identificador_socio": "str",
-        "razao_social": "str",
-        "cnpj_cpf_socio": "str",
-        "codigo_qualificacao_socio": "str",
-        "data_entrada_sociedade": "str",
-        "codigo_pais_socio_estrangeiro": "str",
-        "numero_cpf_representante_legal": "str",
-        "nome_representante_legal": "str",
-        "codigo_qualificacao_representante_legal": "str",
-        "faixa_etaria": "str",
-    },
-    "pais": {"codigo": "str", "descricao": "str"},
-    "municipio": {"codigo": "str", "descricao": "str"},
-    "qualificacao_socio": {"codigo": "str", "descricao": "str"},
-    "natureza_juridica": {"codigo": "str", "descricao": "str"},
-    "cnae": {"codigo": "str", "descricao": "str"},
-    "motivo": {"codigo": "str", "descricao": "str"},
-}
-
-PANDAS_DTYPES = {
-    "str": str,
-    "int": "Int64",
-    "float": "float64",
-    "bool": "boolean",
-}
 
 
 def get_table_name(filename: str) -> str | None:
@@ -104,7 +26,7 @@ def get_table_name(filename: str) -> str | None:
 
     filename = os.path.basename(filename).lower()
 
-    for table in FIELDS.keys():
+    for table in TABLE_FIELDS.keys():
         if table in filename:
             return table
 
@@ -123,7 +45,7 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
         pd.DataFrame: The dataframe with correct data types.
     """
     for col, dtype in dtype_mapping.items():
-        pandas_dtype = PANDAS_DTYPES[dtype]
+        pandas_dtype = PANDAS_DTYPES_MAP[dtype]
 
         try:
             if pandas_dtype == "string":
@@ -160,7 +82,7 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     """
 
     # Enforce datatypes
-    df = enforce_dtypes(df, FIELDS[table_name])
+    df = enforce_dtypes(df, TABLE_FIELDS[table_name])
 
     # Remove leading/trailing whitespace from string columns
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
@@ -177,21 +99,9 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     return df
 
 
-def transform_data(csv_files_paths: list[str]) -> list[str]:
-    """
-    Reads large CSV files in chunks, applies headers, and saves transformed CSVs.
-
-    Args:
-        csv_paths (list[str]): List of file paths to CSV files.
-    """
-
-    print(csv_files_paths)
-
-    os.makedirs(TRANSFORMED_PATH, exist_ok=True)
-
-    # Clear existing files
+def remove_existing_files(csv_files_paths: list[str]):
     for csv_file_path in csv_files_paths:
-        print(f"Checking and clearing {csv_file_path}...")
+        print(f"Checking if {csv_file_path} already has output file...")
 
         # Get table name
         table_name = get_table_name(csv_file_path)
@@ -203,74 +113,106 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
         output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
         if os.path.exists(output_file):
             os.remove(output_file)
-            print(f"Deleting old output file {output_file}.")
+            print(f"Deleted old output file {output_file}.")
+
+
+def process_csv(csv_file_path: str) -> str:
+    """
+    Processes a CSV file by reading it in chunks, cleaning the data, and writing the transformed data to a new CSV file.
+
+    The function performs the following steps:
+    1. Determines the table name based on the CSV file path.
+    2. Reads the CSV file in chunks, with each chunk being processed separately.
+    3. Cleans the data in each chunk using the `clean_dataframe` function.
+    4. Writes the cleaned data to a new CSV file in the specified output directory.
+
+    Notes:
+    - The CSV file is expected to be encoded in "latin-1" and use ";" as the separator.
+    - The function handles bad lines by issuing a warning and skipping them.
+    - The pandas dtypes are converted later in clean_dataframe function.
+    - If the number of columns in a chunk does not match the expected number of columns, the chunk is skipped.
+    - The function logs progress and any errors encountered during processing.
+
+    Args:
+        csv_file_path (str): The path to the CSV file to be processed.
+    Returns:
+        str or None: The path to the output file if processing is successful, otherwise None.
+    """
+
+    print(f"Processing {csv_file_path}...")
+
+    table_name = get_table_name(csv_file_path)
+    if not table_name:
+        print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
+        return None
+
+    output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
+    expected_columns = list(TABLE_FIELDS[table_name].keys())
+
+    first_chunk = True
+    try:
+        for chunk in pd.read_csv(
+            csv_file_path,
+            encoding="latin-1",
+            sep=";",
+            dtype=str,
+            header=None,
+            on_bad_lines="warn",
+            low_memory=False,
+            chunksize=READ_CHUNK_SIZE,
+        ):
+            if len(chunk.columns) != len(expected_columns):
+                print(
+                    f"Warning: {csv_file_path} has {len(chunk.columns)} columns but expected {len(expected_columns)}. Skipping chunk."
+                )
+                continue
+
+            chunk.columns = expected_columns
+            chunk = clean_dataframe(chunk, table_name)
+            chunk.to_csv(
+                output_file,
+                mode="a",
+                index=False,
+                sep=";",
+                header=first_chunk,
+                encoding="latin-1",
+                quoting=csv.QUOTE_NONNUMERIC,
+            )
+            first_chunk = False
+
+        print(f"Finished processing {csv_file_path}")
+        return output_file
+    except Exception as e:
+        print(f"Error processing {csv_file_path}: {e}")
+        return None
+
+
+def transform_data(csv_files_paths: list[str]) -> list[str]:
+    """
+    Transforms a list of CSV files by processing each file and saving the transformed data.
+
+    Args:
+        csv_files_paths (list[str]): A list of file paths to the CSV files to be transformed.
+
+    Returns:
+        list[str]: A list of file paths to the transformed CSV files.
+
+    Raises:
+        OSError: If there is an issue creating the output directory or removing existing files.
+
+    Example:
+        transformed_files = transform_data(['/path/to/file1.csv', '/path/to/file2.csv'])
+    """
+
+    os.makedirs(TRANSFORMED_PATH, exist_ok=True)
+    remove_existing_files(csv_files_paths)
 
     transformed_data = []
 
-    # Processing each csv file
     for csv_file_path in csv_files_paths:
-        print(f"Processing {csv_file_path}...")
-
-        # Get table name
-        table_name = get_table_name(csv_file_path)
-        if not table_name:
-            print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
-            continue
-
-        # Set output file path
-        output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
-
-        # Get expected columns
-        expected_columns = list(FIELDS[table_name].keys())
-
-        # Read CSV in chunks
-        first_chunk = True
-        try:
-            for chunk in pd.read_csv(
-                csv_file_path,
-                encoding="latin-1",
-                sep=";",
-                dtype=str,  # dtypes are converted later in clean_dataframe function
-                header=None,
-                on_bad_lines="warn",
-                low_memory=False,
-                chunksize=READ_CHUNK_SIZE,
-            ):
-
-                # Validate column count
-                if len(chunk.columns) != len(expected_columns):
-                    print(
-                        f"Warning: {csv_file_path} has {len(chunk.columns)} columns but expected {len(expected_columns)}. Skipping chunk."
-                    )
-                    continue
-
-                # Assign column names
-                chunk.columns = expected_columns
-
-                # Clean chunk
-                chunk = clean_dataframe(chunk, table_name)
-
-                # Append chunk to output file
-                chunk.to_csv(
-                    output_file,
-                    mode="a",
-                    index=False,
-                    sep=";",
-                    header=first_chunk,
-                    encoding="latin-1",
-                    quoting=csv.QUOTE_NONNUMERIC,
-                )
-                first_chunk = False
-
-        except Exception as e:
-            print(f"Error processing {csv_file_path}: {e}")
-
-        # Append file to processed files
-        if output_file not in transformed_data:
+        output_file = process_csv(csv_file_path)
+        if output_file:
             transformed_data.append(output_file)
 
-        print(f"Finished processing {csv_file_path}")
-
     print("Transformation completed!")
-
     return transformed_data
