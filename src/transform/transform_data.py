@@ -10,7 +10,7 @@ from constants.pandas_dtypes_map import PANDAS_DTYPES_MAP
 config = load_config()
 EXTRACT_PATH = config["paths"]["extract_path"]
 TRANSFORMED_PATH = config["paths"]["transformed_path"]
-READ_CHUNK_SIZE = 10000
+READ_CHUNK_SIZE = config["performance"]["read_chunk_size"]
 
 
 def get_table_name(filename: str) -> str | None:
