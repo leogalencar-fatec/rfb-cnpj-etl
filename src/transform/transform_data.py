@@ -1,3 +1,4 @@
+import csv
 import pandas as pd
 import os
 from utils.helpers import load_config
@@ -83,7 +84,7 @@ FIELDS = {
 }
 
 PANDAS_DTYPES = {
-    "str": "string",
+    "str": str,
     "int": "Int64",
     "float": "float64",
     "bool": "boolean",
@@ -188,10 +189,9 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
 
     os.makedirs(TRANSFORMED_PATH, exist_ok=True)
 
-    transformed_data = []
-
+    # Clear existing files
     for csv_file_path in csv_files_paths:
-        print(f"Processing {csv_file_path}...")
+        print(f"Checking and clearing {csv_file_path}...")
 
         # Get table name
         table_name = get_table_name(csv_file_path)
@@ -202,15 +202,26 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
         # Check if file already exists
         output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
         if os.path.exists(output_file):
-            print(f"Output file {output_file} already exists. Skipping transformation.")
-            transformed_data.append(output_file)
+            os.remove(output_file)
+            print(f"Deleting old output file {output_file}.")
+
+    transformed_data = []
+
+    # Processing each csv file
+    for csv_file_path in csv_files_paths:
+        print(f"Processing {csv_file_path}...")
+
+        # Get table name
+        table_name = get_table_name(csv_file_path)
+        if not table_name:
+            print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
             continue
+
+        # Set output file path
+        output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
 
         # Get expected columns
         expected_columns = list(FIELDS[table_name].keys())
-
-        # Get columns types
-        dtypes = FIELDS[table_name]
 
         # Read CSV in chunks
         first_chunk = True
@@ -219,7 +230,7 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
                 csv_file_path,
                 encoding="latin-1",
                 sep=";",
-                dtype=dtypes,
+                dtype=str,  # dtypes are converted later in clean_dataframe function
                 header=None,
                 on_bad_lines="warn",
                 low_memory=False,
@@ -237,7 +248,7 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
                 chunk.columns = expected_columns
 
                 # Clean chunk
-                # chunk = clean_dataframe(chunk, table_name)
+                chunk = clean_dataframe(chunk, table_name)
 
                 # Append chunk to output file
                 chunk.to_csv(
@@ -247,6 +258,7 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
                     sep=";",
                     header=first_chunk,
                     encoding="latin-1",
+                    quoting=csv.QUOTE_NONNUMERIC,
                 )
                 first_chunk = False
 
