@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 # Configuration
 config = load_config()
 
+DB_TYPE = config["database"]["type"]
 DB_HOST = config["database"]["host"]
 DB_USERNAME = config["database"]["username"]
 DB_PASSWORD = config["database"]["password"]
@@ -22,6 +23,7 @@ SQL_ALCHEMY_PG_URL = (
 PG_URL = f"dbname={DB_NAME} user={DB_USERNAME} host={DB_HOST} port={DB_HOST} password={DB_PASSWORD}"
 
 # Classes definition
+
 
 class MySQLConn:
     """
@@ -56,12 +58,24 @@ class MySQLConn:
     def connect(self, host, user, password, database, port):
         if self.conn is None:
             self.conn = mysql.connector.connect(
-                host=host, user=user, password=password, database=database, port=port
+                host=host,
+                user=user,
+                password=password,
+                database=database,
+                port=port,
+                allow_local_infile=True,
             )
+            self.conn.autocommit = True
 
     def get_connection(self):
         if self.conn is None:
-            self.connect()
+            self.connect(
+                host=self.host,
+                user=self.user,
+                password=self.password,
+                database=self.database,
+                port=self.port,
+            )
         return self.conn
 
     def close_connection(self):
@@ -148,8 +162,16 @@ class SQLAlchemyConn:
 
 
 # Export connections instances
-PG_CONN = Psycopg2Conn(PG_URL)
-MYSQL_CONN = MySQLConn(
-    host=DB_HOST, user=DB_USERNAME, password=DB_PASSWORD, database=DB_NAME, port=DB_PORT
-)
-SQL_ALCHEMY_MYSQL_CONN = SQLAlchemyConn(SQL_ALCHEMY_MYSQL_URL)
+match (DB_TYPE):
+    case "postgresql":
+        PG_CONN = Psycopg2Conn(PG_URL)
+        SQL_ALCHEMY_PG_CONN = SQLAlchemyConn(SQL_ALCHEMY_PG_URL)
+    case "mysql":
+        MYSQL_CONN = MySQLConn(
+            host=DB_HOST,
+            user=DB_USERNAME,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            port=DB_PORT,
+        )
+        SQL_ALCHEMY_MYSQL_CONN = SQLAlchemyConn(SQL_ALCHEMY_MYSQL_URL)

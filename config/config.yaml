@@ -1,9 +1,17 @@
 database:
+  type: mysql
   host: localhost
-  port: 5432
-  username: your_username
-  password: your_password
-  database_name: your_database
+  port: 3306
+  username: root
+  password: ''
+  database_name: brazil_cnpj
+# database:
+#   type: mysql
+#   host: localhost
+#   port: 5432
+#   username: your_username
+#   password: your_password
+#   database_name: your_database
 
 data_source:
   base_url: https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
