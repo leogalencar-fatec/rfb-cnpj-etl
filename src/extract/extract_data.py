@@ -147,7 +147,7 @@ def download_all_zips(month: str):
     Returns:
         list[str]: A list of paths to the downloaded ZIP files.
     """
-    zip_urls = get_zip_files(month)[2:3] # [:1] -> get only one file for testing
+    zip_urls = get_zip_files(month)[:1] # [:1] -> get only one file for testing
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
 

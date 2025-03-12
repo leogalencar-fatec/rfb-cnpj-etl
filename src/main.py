@@ -9,8 +9,8 @@ def main():
     # # Step 2: Transform data
     transformed_data = transform.transform_data(raw_data)
     
-    # # Step 3: Load data into the database
-    # load.load_data(transformed_data)
+    # Step 3: Load data into the database
+    load.load_data(transformed_data)
 
 if __name__ == "__main__":
     main()
