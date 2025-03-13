@@ -1,11 +1,11 @@
--- Lookup Tables (Non-Partitioned)
+-- Lookup Tables
 CREATE TABLE pais (
     codigo VARCHAR(3) PRIMARY KEY,
     descricao TEXT
 );
 
 CREATE TABLE municipio (
-    codigo VARCHAR(7) PRIMARY KEY,
+    codigo VARCHAR(4) PRIMARY KEY,
     descricao TEXT
 );
 
@@ -15,7 +15,7 @@ CREATE TABLE qualificacao_socio (
 );
 
 CREATE TABLE natureza_juridica (
-    codigo VARCHAR(5) PRIMARY KEY,
+    codigo VARCHAR(4) PRIMARY KEY,
     descricao TEXT
 );
 
@@ -56,10 +56,10 @@ CREATE TABLE id_faixa_etaria (
 
 -- Main Tables
 CREATE TABLE empresa (
-    cnpj_basico VARCHAR(14) PRIMARY KEY,
+    cnpj_basico VARCHAR(8) PRIMARY KEY,
     razao_social TEXT,
-    cod_natureza_juridica VARCHAR(5),
-    cod_qualificacao_do_responsavel VARCHAR(5),
+    cod_natureza_juridica VARCHAR(4),
+    cod_qualificacao_do_responsavel VARCHAR(2),
     capital_social DECIMAL(15,2),
     cod_porte VARCHAR(2),
     ente_federativo_responsavel TEXT,
@@ -69,10 +69,10 @@ CREATE TABLE empresa (
 );
 
 CREATE TABLE estabelecimento (
-    cnpj_basico VARCHAR(14),
+    cnpj_basico VARCHAR(8),
     cnpj_ordem VARCHAR(4),
     cnpj_dv VARCHAR(2),
-    cod_id_matriz_filial VARCHAR(1),
+    cod_id_matriz_filial CHAR(1),
     nome_fantasia TEXT,
     cod_situacao_cadastral VARCHAR(2),
     data_situacao_cadastral DATE,
@@ -115,7 +115,7 @@ CREATE TABLE estabelecimento (
 );
 
 CREATE TABLE simples (
-    cnpj_basico VARCHAR(14) PRIMARY KEY,
+    cnpj_basico VARCHAR(8) PRIMARY KEY,
     opcao_pelo_simples VARCHAR(1),
     data_opcao_pelo_simples DATE,
     data_exclusao_pelo_simples DATE,
@@ -126,7 +126,7 @@ CREATE TABLE simples (
 );
 
 CREATE TABLE socio (
-    cnpj_basico VARCHAR(14),
+    cnpj_basico VARCHAR(8),
     cod_id_socio VARCHAR(2),
     razao_social TEXT,
     cnpj_cpf_socio VARCHAR(14),

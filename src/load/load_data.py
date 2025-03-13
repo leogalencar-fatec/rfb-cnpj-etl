@@ -1,5 +1,4 @@
-import pandas as pd
-import psycopg2
+from constants.table_fields import TABLE_FIELDS
 from utils.helpers import load_config
 from utils.database.conn import MYSQL_CONN, SQL_ALCHEMY_MYSQL_CONN
 
@@ -7,7 +6,18 @@ from utils.database.conn import MYSQL_CONN, SQL_ALCHEMY_MYSQL_CONN
 config = load_config()
 READ_CHUNK_SIZE = config["performance"]["read_chunk_size"]
 WRITE_CHUNK_SIZE = config["performance"]["write_chunk_size"]
-
+TABLES_TO_LOAD = {
+    "cnae": "cnae",
+    "motivo": "motivo",
+    "municipio": "municipio",
+    "natureza": "natureza_juridica",
+    "pais": "pais",
+    "qualifica": "qualificacao_socio",
+    "empresa": "empresa",
+    "estabelecimento": "estabelecimento",
+    "socio": "socio",
+    "simples": "simples",
+}
 
 # Database connections
 mysql_conn = MYSQL_CONN.get_connection()
@@ -15,28 +25,64 @@ sql_alchemy_conn = SQL_ALCHEMY_MYSQL_CONN.get_session()
 
 
 def get_separated_files(name: str, data: list[str]) -> list[str]:
-    print(data)
-    return [file for file in data if file.lower().startswith(name)]
+    """
+    Filters and returns a list of file paths from the given data that start with the specified name.
+
+    Args:
+        name (str): The prefix to filter the file names.
+        data (list[str]): A list of file paths.
+    Returns:
+        list[str]: A list of file paths that start with the specified name.
+    """
+
+    return [file for file in data if file.lower().split("/")[-1].startswith(name)]
+
 
 def drop_and_recreate_tables():
-    """Drops all tables and recreates them using the optimized schema."""
+    """
+    Drops existing tables and recreates them based on the SQL script.
+
+    This function performs the following steps:
+    1. Disables foreign key checks.
+    2. Drops existing tables listed in the `TABLE_FIELDS` dictionary and additional tables.
+    3. Re-enables foreign key checks.
+    4. Reads and executes SQL statements from the `create_tables.sql` script to recreate the tables.
+
+    Note:
+        The function assumes that `mysql_conn` is a valid MySQL connection object and `TABLE_FIELDS` is a dictionary
+        containing table names as keys.
+    Raises:
+        mysql.connector.Error: If any MySQL error occurs during the execution of SQL statements.
+    """
+
     cursor = mysql_conn.cursor()
 
     print("Dropping existing tables...")
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-    tables = ["socio", "simples", "estabelecimento", "empresa", 
-              "cnae", "motivo", "municipio", "natureza_juridica", "pais", "qualificacao_socio",
-              "id_matriz_filial", "id_porte_empresa", "id_situacao_cadastral", "id_socio", "id_faixa_etaria"]
-    for table in tables:
-        cursor.execute(f"DROP TABLE IF EXISTS {table};")
+    # tables = ["socio", "simples", "estabelecimento", "empresa",
+    #           "cnae", "motivo", "municipio", "natureza_juridica", "pais", "qualificacao_socio",
+    #           "id_matriz_filial", "id_porte_empresa", "id_situacao_cadastral", "id_socio", "id_faixa_etaria"]
+    tables = list(TABLE_FIELDS.keys()) + [
+        "id_matriz_filial",
+        "id_porte_empresa",
+        "id_situacao_cadastral",
+        "id_socio",
+        "id_faixa_etaria",
+    ]
+
+    drop_statements = (
+        "; ".join([f"DROP TABLE IF EXISTS {table}" for table in tables]) + ";"
+    )
+    cursor.execute(drop_statements, multi=True)
+
     cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
     print("Recreating tables...")
     with open("src/sql/create_tables.sql", "r") as f:
-            sql_script = f.read()
-            for statement in sql_script.split(';'):
-                if statement.strip():
-                    cursor.execute(statement)
+        sql_script = f.read()
+        for statement in sql_script.split(";"):
+            if statement.strip():
+                cursor.execute(statement)
 
     mysql_conn.commit()
     cursor.close()
@@ -44,19 +90,38 @@ def drop_and_recreate_tables():
 
 def load_csv_to_db(file_paths: list[str], table_name: str):
     """
-    Loads CSV files into MySQL using `LOAD DATA INFILE` for efficiency.
-    Assumes first file has headers, others do not.
+    Load CSV files into a specified database table.
+
+    This function takes a list of file paths to CSV files and loads their contents
+    into a specified database table. The first file in the list is assumed to have
+    headers, which will be ignored during the loading process.
+
+    Args:
+        file_paths (list[str]): A list of file paths to the CSV files to be loaded.
+        table_name (str): The name of the database table into which the data will be loaded.
+    Raises:
+        Exception: If there is an error during the loading process, an exception will be raised
+                   and the error message will be printed.
+    Example:
+        load_csv_to_db(['/path/to/file1.csv', '/path/to/file2.csv'], 'my_table')
     """
+
     cursor = mysql_conn.cursor()
 
     for index, file_path in enumerate(file_paths):
         has_headers = index == 0  # Only first file has headers
         ignore_lines = 1 if has_headers else 0
         
-        print(f"Loading {file_path} into {table_name} (headers: {has_headers})...")
+        if not file_path.endswith(".csv"):
+            print(f"Skipping invalid file: {file_path}")
+            continue
+
+        print(
+            f"Loading {file_path} into {table_name} table (headers: {has_headers})..."
+        )
 
         sql = f"""
-        LOAD DATA INFILE '{file_path}'
+        LOAD DATA LOCAL INFILE '{file_path}'
         INTO TABLE {table_name}
         FIELDS TERMINATED BY ';'
         ENCLOSED BY '"'
@@ -66,50 +131,37 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
         try:
             cursor.execute(sql)
             mysql_conn.commit()
-            print(f"Successfully loaded {file_path} into {table_name}.")
+            print(f"Successfully loaded {file_path} into {table_name} table.")
         except Exception as e:
+            mysql_conn.rollback()
             print(f"Failed to load {file_path}: {e}")
 
     cursor.close()
 
 
 def load_data(transformed_data: list[str]):
-    """Orchestrates the data loading process."""
+    """
+    Loads transformed data into the database.
+
+    This function performs the following steps:
+    1. Drops and recreates the necessary tables.
+    2. Iterates over the tables to load, retrieves the corresponding files from the transformed data,
+       and loads the CSV files into the database.
+    3. Prints a completion message.
+    4. Closes the database connections.
+
+    Args:
+        transformed_data (list[str]): A list of transformed data file paths.
+    Returns:
+        None
+    """
+
     drop_and_recreate_tables()
 
-    # Separate files per table
-    files_empresa = get_separated_files("empresa", transformed_data)
-    files_estabelecimento = get_separated_files("estabelecimento", transformed_data)
-    files_socio = get_separated_files("socio", transformed_data)
-    files_simples = get_separated_files("simples", transformed_data)
-    files_cnae = get_separated_files("cnae", transformed_data)
-    files_motivo = get_separated_files("motivo", transformed_data)
-    files_municipio = get_separated_files("municipio", transformed_data)
-    files_natureza_juridica = get_separated_files("natureza", transformed_data)
-    files_pais = get_separated_files("pais", transformed_data)
-    files_qualificacao_socio = get_separated_files("qualifica", transformed_data)
-
-    # Load data using optimized `LOAD DATA INFILE`
-    if files_empresa:
-        load_csv_to_db(files_empresa, "empresa")
-    if files_estabelecimento:
-        load_csv_to_db(files_estabelecimento, "estabelecimento")
-    if files_socio:
-        load_csv_to_db(files_socio, "socio")
-    if files_simples:
-        load_csv_to_db(files_simples, "simples")
-    if files_cnae:
-        load_csv_to_db(files_cnae, "cnae")
-    if files_motivo:
-        load_csv_to_db(files_motivo, "motivo")
-    if files_municipio:
-        load_csv_to_db(files_municipio, "municipio")
-    if files_natureza_juridica:
-        load_csv_to_db(files_natureza_juridica, "natureza_juridica")
-    if files_pais:
-        load_csv_to_db(files_pais, "pais")
-    if files_qualificacao_socio:
-        load_csv_to_db(files_qualificacao_socio, "qualificacao_socio")
+    for prefix, table in TABLES_TO_LOAD.items():
+        files = get_separated_files(prefix, transformed_data)
+        if files:
+            load_csv_to_db(files, table)
 
     print("Data loading complete.")
 

@@ -1,3 +1,6 @@
+import os
+import shutil
+import subprocess
 import yaml
 
 def log_message(message):
@@ -33,3 +36,29 @@ def load_config(config_path='config/config.yaml'):
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
+
+def is_running_in_wsl() -> bool:
+    """Checks if the script is running in a WSL environment."""
+    with open('/proc/version', 'r') as f:
+        return 'microsoft' in f.read().lower()
+
+
+def convert_wsl_to_windows_path(wsl_path: str) -> str:
+    """Converts a WSL path to a Windows path."""
+    result = subprocess.run(['wslpath', '-m', wsl_path], capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def copy_to_windows_temp(file_path: str) -> str:
+    """Copies a file from WSL to a temporary location on the Windows filesystem."""
+    temp_dir = "C:/temp_wsl_files"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+    temp_file_path = os.path.join(temp_dir, os.path.basename(file_path))
+    
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+    
+    shutil.copy(file_path, temp_file_path)
+    return temp_file_path
