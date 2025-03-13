@@ -1,6 +1,7 @@
 import csv
 import pandas as pd
 import os
+from constants.csv_table_mapping import CSV_TABLE_MAPPING
 from utils.helpers import load_config
 from constants.table_fields import TABLE_FIELDS
 from constants.pandas_dtypes_map import PANDAS_DTYPES_MAP
@@ -26,8 +27,8 @@ def get_table_name(filename: str) -> str | None:
 
     filename = os.path.basename(filename).lower()
 
-    for table in TABLE_FIELDS.keys():
-        if table in filename:
+    for prefix, table in CSV_TABLE_MAPPING.items():
+        if filename.lower().startswith(prefix):
             return table
 
     return None

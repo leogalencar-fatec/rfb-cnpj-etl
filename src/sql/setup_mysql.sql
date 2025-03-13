@@ -1,6 +1,10 @@
 -- Enable local file import globally
 SET GLOBAL local_infile = 1;
 
+-- Set charset to UTF-8
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- Check and set secure_file_priv (optional)
 SHOW VARIABLES LIKE 'secure_file_priv';
 

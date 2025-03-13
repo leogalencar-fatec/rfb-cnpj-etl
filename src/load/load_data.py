@@ -70,19 +70,13 @@ def drop_and_recreate_tables():
         "id_faixa_etaria",
     ]
 
-    drop_statements = (
-        "; ".join([f"DROP TABLE IF EXISTS {table}" for table in tables]) + ";"
-    )
-    cursor.execute(drop_statements, multi=True)
+    for table in tables:
+        cursor.execute(f"DROP TABLE IF EXISTS {table};")
 
     cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
     print("Recreating tables...")
-    with open("src/sql/create_tables.sql", "r") as f:
-        sql_script = f.read()
-        for statement in sql_script.split(";"):
-            if statement.strip():
-                cursor.execute(statement)
+    read_sql_file("src/sql/create_tables.sql")
 
     mysql_conn.commit()
     cursor.close()
@@ -111,7 +105,7 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
     for index, file_path in enumerate(file_paths):
         has_headers = index == 0  # Only first file has headers
         ignore_lines = 1 if has_headers else 0
-        
+
         if not file_path.endswith(".csv"):
             print(f"Skipping invalid file: {file_path}")
             continue
@@ -139,6 +133,18 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
     cursor.close()
 
 
+def read_sql_file(url: str):
+    cursor = mysql_conn.cursor()
+
+    with open(url, "r") as f:
+        sql_script = f.read()
+        for statement in sql_script.split(";"):
+            if statement.strip():
+                cursor.execute(statement)
+
+    cursor.close()
+
+
 def load_data(transformed_data: list[str]):
     """
     Loads transformed data into the database.
@@ -158,6 +164,13 @@ def load_data(transformed_data: list[str]):
 
     drop_and_recreate_tables()
 
+    # Insert data for id_tables
+    read_sql_file("src/sql/default_insert.sql")
+
+    # Insert missing data on RFB
+    read_sql_file("src/sql/missing_data.sql")
+
+    # Insert data from CSV
     for prefix, table in TABLES_TO_LOAD.items():
         files = get_separated_files(prefix, transformed_data)
         if files:
