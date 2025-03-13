@@ -175,7 +175,7 @@ def process_csv(csv_file_path: str) -> str:
                 index=False,
                 sep=";",
                 header=first_chunk,
-                encoding="latin-1",
+                encoding="utf-8",
                 quoting=csv.QUOTE_NONNUMERIC,
             )
             first_chunk = False
