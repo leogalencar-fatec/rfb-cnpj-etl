@@ -1,0 +1,22 @@
+data_source:
+  base_url: https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
+database:
+  database_name: brazil_cnpj
+  host: 10.0.0.23
+  password: ''
+  port: 3306
+  type: mysql
+  username: root
+logging:
+  log_file: /path/to/logfile.log
+  log_level: INFO
+paths:
+  download_path: data/download/
+  extract_path: data/extract/
+  transformed_path: data/cleaned/
+performance:
+  read_chunk_size: 10000
+  write_chunk_size: 10000
+settings:
+  ask_user: true
+  estabelecimentos_apta_only: false

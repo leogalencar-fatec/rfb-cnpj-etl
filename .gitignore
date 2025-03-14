@@ -177,6 +177,3 @@ cython_debug/
 data/download/
 data/extract/
 data/cleaned/
-
-# Ignore config/config.yaml file changes
-config/config.yaml
