@@ -174,5 +174,9 @@ cython_debug/
 .pypirc
 
 # Ignore all generated files from download and extraction in the data/ directory
-data/zip/
-data/csv/
+data/download/
+data/extract/
+data/cleaned/
+
+# Ignore config/config.yaml file changes
+config/config.yaml
