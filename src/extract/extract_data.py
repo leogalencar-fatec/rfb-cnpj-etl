@@ -25,7 +25,9 @@ session = requests.Session()
 session_retries = 3
 
 
-def request_retry_get(url: str, showAttempts: bool = False, **kwargs) -> requests.Response:
+def request_retry_get(
+    url: str, showAttempts: bool = False, **kwargs
+) -> requests.Response:
     """
     Makes a GET request to the specified URL with retry logic.
     Args:
@@ -37,12 +39,12 @@ def request_retry_get(url: str, showAttempts: bool = False, **kwargs) -> request
     Raises:
         requests.RequestException: If the request fails after the specified number of retries.
     """
-    
+
     for attempt in range(session_retries):
         try:
             response = session.get(url, **kwargs)
             response.raise_for_status()
-            
+
             # Success
             if showAttempts:
                 print(f"Attempt {attempt + 1} successful.\n")
@@ -64,7 +66,7 @@ def get_available_months() -> list[str]:
     Raises:
         requests.RequestException: If the request to fetch available months fails.
     """
-    
+
     try:
         response = request_retry_get(BASE_URL)
     except requests.RequestException as e:
@@ -96,15 +98,14 @@ def get_zip_files(month: str) -> list[str]:
     Raises:
         requests.RequestException: If the request to fetch ZIP files fails.
     """
-    
+
     month_url = urljoin(BASE_URL, month + "/")
-    
+
     try:
         response = request_retry_get(month_url)
     except requests.RequestException as e:
         print(f"Failed to fetch all zip files from given month '{month}': {e}")
         return []
-    
 
     soup = BeautifulSoup(response.text, "html.parser")
     zip_files = [
@@ -125,13 +126,13 @@ def download_zip_file(url: str, save_path: str):
     Raises:
         requests.RequestException: If the request to download the ZIP file fails.
     """
-    
+
     try:
         response = request_retry_get(url, stream=True)
     except requests.RequestException as e:
         print(f"Failed to download zip file from {url}: {e}")
         raise
-    
+
     with open(save_path, "wb") as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
@@ -147,7 +148,7 @@ def download_all_zips(month: str):
     Returns:
         list[str]: A list of paths to the downloaded ZIP files.
     """
-    zip_urls = get_zip_files(month)[:1] # [:1] -> get only one file for testing
+    zip_urls = get_zip_files(month)[21:26]
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
 
@@ -176,17 +177,17 @@ def clean_filename(filename: str, zip_filename: str) -> str:
     Returns:
         str: The cleaned filename.
     """
-    
+
     # Add .csv if missing
     if not filename.endswith(".csv"):
         filename += ".csv"
-        
+
     # Add zip_filename to the start of the filename
     filename = f"{os.path.splitext(os.path.basename(zip_filename))[0]}_{filename}"
-    
+
     # Remove special characters
     filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
-    
+
     return filename
 
 
@@ -201,7 +202,7 @@ def extract_zip_files(zip_files, month) -> list[str]:
     Returns:
         list[str]: A list of paths to the extracted files.
     """
-    
+
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
 
@@ -215,12 +216,15 @@ def extract_zip_files(zip_files, month) -> list[str]:
                 if os.path.exists(cleaned_path):
                     print(f"Skipping {cleaned_path}, already exists.")
                 else:
-                    with zip_ref.open(name) as source, open(cleaned_path, "wb") as target:
+                    with zip_ref.open(name) as source, open(
+                        cleaned_path, "wb"
+                    ) as target:
                         target.write(source.read())
+                    os.remove(zip_file)
                     print(f"Extracted and cleaned {name} to {cleaned_path}")
-                    
+
                 extracted_files.append(cleaned_path)
-                
+
             print(f"Extracted {zip_file} to {extract_path}")
 
     return extracted_files
@@ -244,7 +248,7 @@ def extract_data() -> list[str]:
     """
 
     """DOWNLOADING DATA"""
-    
+
     # Getting available months
     months = get_available_months()
     if not months:
@@ -256,12 +260,15 @@ def extract_data() -> list[str]:
     for i, month in enumerate(months):
         print(f"{i + 1}. {month}")
 
-    choice = input(
-        f"Enter the number of the month to download (1-{len(months)}), or press Enter for latest: "
-    )
+    if config["settings"]["ask_user"]:
+        choice = input(
+            f"Enter the number of the month to download (1-{len(months)}), or press Enter for latest: "
+        )
 
-    if choice.isdigit() and 1 <= int(choice) <= len(months):
-        selected_month = months[int(choice) - 1]
+        if choice.isdigit() and 1 <= int(choice) <= len(months):
+            selected_month = months[int(choice) - 1]
+        else:
+            selected_month = months[0]
     else:
         selected_month = months[0]
 
@@ -271,7 +278,7 @@ def extract_data() -> list[str]:
     print("Download complete!")
 
     """EXTRACTING ZIP FILES"""
-    
+
     # Extract and add .csv for each file (see documentation)
     print("Extracting ZIP files...")
     extracted_files = extract_zip_files(downloaded_files, selected_month)

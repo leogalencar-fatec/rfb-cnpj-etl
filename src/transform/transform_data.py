@@ -34,6 +34,16 @@ def get_table_name(filename: str) -> str | None:
     return None
 
 
+def get_output_file_path(csv_file_path: str, table_name: str) -> str:
+    """Constructs the output file path based on input file structure."""
+    month = os.path.basename(os.path.dirname(csv_file_path))
+    base_name = os.path.basename(csv_file_path)
+    file_number = "".join(filter(str.isdigit, base_name.split("_")[0]))
+
+    file_name = f"{table_name}" + (f"_{file_number}" if file_number else "") + ".csv"
+    return os.path.join(TRANSFORMED_PATH, month, file_name)
+
+
 def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFrame:
     """
     Ensures the dataframe columns have the correct types.
@@ -69,6 +79,15 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
     return df
 
 
+def filter_estabelecimentos_apta(df: pd.DataFrame) -> pd.DataFrame:
+    """Filters 'estabelecimento' rows where 'cod_situacao_cadastral' is '02' (APTA)."""
+    return (
+        df[df["cod_situacao_cadastral"] == "02"]
+        if "cod_situacao_cadastral" in df.columns
+        else df
+    )
+
+
 def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     """
     Cleans the given DataFrame by enforcing data types, removing whitespace,
@@ -97,6 +116,15 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     # Reset index
     df.reset_index(drop=True, inplace=True)
 
+    """FILTERS"""
+
+    # Estabelecimentos "APTA" only
+    if (
+        config["settings"]["estabelecimentos_apta_only"]
+        and table_name == "estabelecimento"
+    ):
+        df = filter_estabelecimentos_apta(df)
+
     return df
 
 
@@ -110,8 +138,8 @@ def remove_existing_files(csv_files_paths: list[str]):
             print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
             continue
 
-        # Check if file already exists
-        output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
+        output_file = get_output_file_path(csv_file_path, table_name)
+
         if os.path.exists(output_file):
             os.remove(output_file)
             print(f"Deleted old output file {output_file}.")
@@ -147,7 +175,7 @@ def process_csv(csv_file_path: str) -> str:
         print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
         return None
 
-    output_file = os.path.join(TRANSFORMED_PATH, f"{table_name}.csv")
+    output_file = get_output_file_path(csv_file_path, table_name)
     expected_columns = list(TABLE_FIELDS[table_name].keys())
 
     first_chunk = True
@@ -181,7 +209,8 @@ def process_csv(csv_file_path: str) -> str:
             )
             first_chunk = False
 
-        print(f"Finished processing {csv_file_path}")
+        os.remove(csv_file_path)
+        print(f"Finished processing and removed {csv_file_path}.")
         return output_file
     except Exception as e:
         print(f"Error processing {csv_file_path}: {e}")
@@ -205,7 +234,10 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
         transformed_files = transform_data(['/path/to/file1.csv', '/path/to/file2.csv'])
     """
 
-    os.makedirs(TRANSFORMED_PATH, exist_ok=True)
+    month = os.path.basename(os.path.dirname(csv_files_paths[0]))
+    transformed_path = os.path.join(TRANSFORMED_PATH, month)
+    os.makedirs(transformed_path, exist_ok=True)
+
     remove_existing_files(csv_files_paths)
 
     transformed_data = []
