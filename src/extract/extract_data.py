@@ -4,7 +4,7 @@ import requests
 import zipfile
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
-from utils.helpers import create_logfile, load_config
+from utils.helpers import ask_month, create_logfile, load_config
 from urllib.parse import urljoin
 
 """
@@ -151,7 +151,7 @@ def download_all_zips(month: str):
     zip_urls = get_zip_files(month)
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
-    
+
     log_filename = create_logfile("download")
 
     downloaded_files = []
@@ -209,7 +209,7 @@ def extract_zip_files(zip_files, month) -> list[str]:
 
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
-    
+
     log_filename = create_logfile("extract")
 
     extracted_files = []
@@ -225,7 +225,11 @@ def extract_zip_files(zip_files, month) -> list[str]:
                     with zip_ref.open(name) as source, open(
                         cleaned_path, "wb"
                     ) as target:
-                        target.write(source.read())
+                        # Reads in 8KB chunks
+                        for chunk in iter(
+                            lambda: source.read(8192), b""
+                        ):
+                            target.write(chunk)
                     with open(log_filename, "a") as log_file:
                         log_file.write(f"{cleaned_path} OK\n")
                     os.remove(zip_file)
@@ -263,31 +267,23 @@ def extract_data() -> list[str]:
         print("No available months found.")
         raise Exception("No available months found.")
 
-    # Let user choose or pick the latest month automatically
-    print("Available months:")
-    for i, month in enumerate(months):
-        print(f"{i + 1}. {month}")
-
     if config["settings"]["ask_user"]:
-        choice = input(
-            f"Enter the number of the month to download (1-{len(months)}), or press Enter for latest: "
-        )
-
-        if choice.isdigit() and 1 <= int(choice) <= len(months):
-            selected_month = months[int(choice) - 1]
-        else:
-            selected_month = months[0]
+        selected_month = ask_month(months)
     else:
         selected_month = months[0]
 
     # Downloading data from selected month
     print(f"Downloading data for: {selected_month}")
-    downloaded_files = download_all_zips(selected_month)
+    # downloaded_files = download_all_zips(selected_month)
     print("Download complete!")
 
     """EXTRACTING ZIP FILES"""
 
     # Extract and add .csv for each file (see documentation)
+    downloaded_files = [
+        os.path.join(DOWNLOAD_PATH, selected_month, file)
+        for file in os.listdir(os.path.join(DOWNLOAD_PATH, selected_month))
+    ]
     print("Extracting ZIP files...")
     extracted_files = extract_zip_files(downloaded_files, selected_month)
     print("Extraction complete!")

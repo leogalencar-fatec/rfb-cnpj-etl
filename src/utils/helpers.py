@@ -83,3 +83,20 @@ def create_logfile(filename: str) -> str:
     os.makedirs(os.path.dirname(log_filename), exist_ok=True)
     
     return log_filename
+
+def ask_month(months):
+    # Let user choose or pick the latest month automatically
+    print("Available months:")
+    for i, month in enumerate(months):
+        print(f"{i + 1}. {month}")
+    
+    choice = input(
+        f"Enter the number of the month to download (1-{len(months)}), or press Enter for latest: "
+    )
+
+    if choice.isdigit() and 1 <= int(choice) <= len(months):
+        selected_month = months[int(choice) - 1]
+    else:
+        selected_month = months[0]
+    
+    return selected_month

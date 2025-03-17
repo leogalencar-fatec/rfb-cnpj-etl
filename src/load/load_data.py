@@ -1,5 +1,7 @@
+import os
 from constants.table_fields import TABLE_FIELDS
-from utils.helpers import create_logfile, load_config
+from transform.transform_data import TRANSFORMED_PATH
+from utils.helpers import ask_month, create_logfile, load_config
 from utils.database.conn import MYSQL_CONN, SQL_ALCHEMY_MYSQL_CONN
 
 # Configuration
@@ -146,7 +148,7 @@ def read_sql_file(url: str):
     cursor.close()
 
 
-def load_data(transformed_data: list[str]):
+def load_data(transformed_data: list[str] = []):
     """
     Loads transformed data into the database.
 
@@ -162,6 +164,23 @@ def load_data(transformed_data: list[str]):
     Returns:
         None
     """
+    
+    if not len(transformed_data) > 0:
+        # Getting available months
+        months = sorted(os.listdir(TRANSFORMED_PATH), reverse=True)
+        if not months:
+            print("No available months found.")
+            raise Exception("No available months found.")
+
+        if config["settings"]["ask_user"]:
+            month = ask_month(months)
+        else:
+            month = months[0]
+
+        transformed_data = [
+            os.path.join(TRANSFORMED_PATH, month, file)
+            for file in sorted(os.listdir(os.path.join(TRANSFORMED_PATH, month)))
+        ]
 
     drop_and_recreate_tables()
 

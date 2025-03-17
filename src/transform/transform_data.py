@@ -2,7 +2,8 @@ import csv
 import pandas as pd
 import os
 from constants.csv_table_mapping import CSV_TABLE_MAPPING
-from utils.helpers import create_logfile, load_config
+from extract.extract_data import DOWNLOAD_PATH
+from utils.helpers import ask_month, create_logfile, load_config
 from constants.table_fields import TABLE_FIELDS
 from constants.pandas_dtypes_map import PANDAS_DTYPES_MAP
 
@@ -217,7 +218,7 @@ def process_csv(csv_file_path: str) -> str:
         return None
 
 
-def transform_data(csv_files_paths: list[str]) -> list[str]:
+def transform_data(csv_files_paths: list[str] = []) -> list[str]:
     """
     Transforms a list of CSV files by processing each file and saving the transformed data.
 
@@ -234,7 +235,24 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
         transformed_files = transform_data(['/path/to/file1.csv', '/path/to/file2.csv'])
     """
 
-    month = os.path.basename(os.path.dirname(csv_files_paths[0]))
+    if not len(csv_files_paths) > 0:
+        # Getting available months
+        months = sorted(os.listdir(EXTRACT_PATH), reverse=True)
+        if not months:
+            print("No available months found.")
+            raise Exception("No available months found.")
+
+        if config["settings"]["ask_user"]:
+            month = ask_month(months)
+        else:
+            month = months[0]
+
+        csv_files_paths = [os.path.join(EXTRACT_PATH, month, file)
+            for file in sorted(os.listdir(os.path.join(EXTRACT_PATH, month)))
+        ]
+    else:
+        month = os.path.basename(os.path.dirname(csv_files_paths[0]))
+
     transformed_path = os.path.join(TRANSFORMED_PATH, month)
     os.makedirs(transformed_path, exist_ok=True)
 
