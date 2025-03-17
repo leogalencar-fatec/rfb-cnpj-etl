@@ -177,3 +177,6 @@ cython_debug/
 data/download/
 data/extract/
 data/cleaned/
+
+# Ignore all generated log files
+logs/*

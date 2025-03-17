@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import yaml
+from datetime import datetime
 
 CONFIG_PATH = "config/config.yaml"
 
@@ -75,3 +76,10 @@ def copy_to_windows_temp(file_path: str) -> str:
 
     shutil.copy(file_path, temp_file_path)
     return temp_file_path
+
+def create_logfile(filename: str) -> str:
+    current_datetime = datetime.now().isoformat(timespec='seconds').replace(':', '-')
+    log_filename = f"logs/{filename}/{filename}_{current_datetime}.txt"
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+    
+    return log_filename

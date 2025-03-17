@@ -2,7 +2,7 @@ import csv
 import pandas as pd
 import os
 from constants.csv_table_mapping import CSV_TABLE_MAPPING
-from utils.helpers import load_config
+from utils.helpers import create_logfile, load_config
 from constants.table_fields import TABLE_FIELDS
 from constants.pandas_dtypes_map import PANDAS_DTYPES_MAP
 
@@ -240,11 +240,15 @@ def transform_data(csv_files_paths: list[str]) -> list[str]:
 
     remove_existing_files(csv_files_paths)
 
+    log_filename = create_logfile("cleaned")
+
     transformed_data = []
 
     for csv_file_path in csv_files_paths:
         output_file = process_csv(csv_file_path)
         if output_file:
+            with open(log_filename, "a") as log_file:
+                log_file.write(f"{output_file} OK\n")
             transformed_data.append(output_file)
 
     print("Transformation completed!")

@@ -1,5 +1,5 @@
 from constants.table_fields import TABLE_FIELDS
-from utils.helpers import load_config
+from utils.helpers import create_logfile, load_config
 from utils.database.conn import MYSQL_CONN, SQL_ALCHEMY_MYSQL_CONN
 
 # Configuration
@@ -101,6 +101,7 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
     """
 
     cursor = mysql_conn.cursor()
+    
 
     for index, file_path in enumerate(file_paths):
         has_headers = index == 0  # Only first file has headers
@@ -169,12 +170,16 @@ def load_data(transformed_data: list[str]):
 
     # Insert missing data on RFB
     read_sql_file("src/sql/missing_data.sql")
+    
+    log_filename = create_logfile("load")
 
     # Insert data from CSV
     for prefix, table in TABLES_TO_LOAD.items():
         files = get_separated_files(prefix, transformed_data)
         if files:
             load_csv_to_db(files, table)
+            with open(log_filename, "a") as log_file:
+                log_file.write(f"{table} OK\n")
 
     print("Data loading complete.")
 

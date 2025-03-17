@@ -69,6 +69,7 @@ def verify_mysql_setup():
         print("User does NOT have `FILE` privilege. Check MySQL permissions.")
 
     print("\n**MySQL Setup Verification Completed**")
+    input("Press any key to close...")
 
 
 if __name__ == "__main__":

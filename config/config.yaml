@@ -19,4 +19,4 @@ performance:
   write_chunk_size: 10000
 settings:
   ask_user: true
-  estabelecimentos_apta_only: false
+  estabelecimentos_apta_only: true

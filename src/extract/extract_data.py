@@ -4,7 +4,7 @@ import requests
 import zipfile
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
-from utils.helpers import load_config
+from utils.helpers import create_logfile, load_config
 from urllib.parse import urljoin
 
 """
@@ -148,9 +148,11 @@ def download_all_zips(month: str):
     Returns:
         list[str]: A list of paths to the downloaded ZIP files.
     """
-    zip_urls = get_zip_files(month)[21:26]
+    zip_urls = get_zip_files(month)
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
+    
+    log_filename = create_logfile("download")
 
     downloaded_files = []
 
@@ -161,6 +163,8 @@ def download_all_zips(month: str):
         else:
             print(f"Downloading {filename}...")
             download_zip_file(url, filename)
+            with open(log_filename, "a") as log_file:
+                log_file.write(f"{filename} OK\n")
         downloaded_files.append(filename)
 
     return downloaded_files
@@ -205,6 +209,8 @@ def extract_zip_files(zip_files, month) -> list[str]:
 
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
+    
+    log_filename = create_logfile("extract")
 
     extracted_files = []
 
@@ -220,6 +226,8 @@ def extract_zip_files(zip_files, month) -> list[str]:
                         cleaned_path, "wb"
                     ) as target:
                         target.write(source.read())
+                    with open(log_filename, "a") as log_file:
+                        log_file.write(f"{cleaned_path} OK\n")
                     os.remove(zip_file)
                     print(f"Extracted and cleaned {name} to {cleaned_path}")
 
