@@ -1,4 +1,5 @@
 import csv
+import logging
 import pandas as pd
 import os
 from constants.csv_table_mapping import CSV_TABLE_MAPPING
@@ -65,8 +66,10 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
             elif pandas_dtype == "Int64":
                 df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
             elif pandas_dtype == "float64":
-                df[col] = df[col].astype(str).str.replace(",", ".", regex=False)
-                df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+                df[col] = pd.to_numeric(
+                    df[col].astype(str).str.replace(",", ".", regex=False),
+                    errors="coerce",
+                )
             elif pandas_dtype == "boolean":
                 df[col] = (
                     df[col]
@@ -75,7 +78,7 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
                     .map({"true": True, "false": False, "1": True, "0": False})
                 )
         except Exception as e:
-            print(f"Warning: Could not convert {col} to {pandas_dtype}: {e}")
+            logging.warning(f"Could not convert {col} to {pandas_dtype}: {e}")
 
     return df
 
@@ -130,22 +133,23 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
 
 
 def remove_existing_files(csv_files_paths: list[str]):
+    """Removes old transformed CSV files before processing new ones."""
+    
     for csv_file_path in csv_files_paths:
-        print(f"Checking if {csv_file_path} already has output file...")
+        logging.info(f"Checking if {csv_file_path} already has output file...")
 
         # Get table name
         table_name = get_table_name(csv_file_path)
         if not table_name:
-            print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
+            logging.warning(f"Could not determine table for {csv_file_path}, skipping.")
             continue
 
         output_file = get_output_file_path(csv_file_path, table_name)
-
         if os.path.exists(output_file):
             os.remove(output_file)
-            print(f"Deleted old output file {output_file}.")
+            logging.info(f"Deleted old output file {output_file}.")
 
-
+# TODO : CONTINUAR REFATORANDO A PARTIR DAQUI
 def process_csv(csv_file_path: str) -> str:
     """
     Processes a CSV file by reading it in chunks, cleaning the data, and writing the transformed data to a new CSV file.
@@ -247,7 +251,8 @@ def transform_data(csv_files_paths: list[str] = []) -> list[str]:
         else:
             month = months[0]
 
-        csv_files_paths = [os.path.join(EXTRACT_PATH, month, file)
+        csv_files_paths = [
+            os.path.join(EXTRACT_PATH, month, file)
             for file in sorted(os.listdir(os.path.join(EXTRACT_PATH, month)))
         ]
     else:

@@ -8,7 +8,7 @@ database:
   type: mysql
   username: root
 logging:
-  log_file: /path/to/logfile.log
+  log_path: logs/
   log_level: INFO
 paths:
   download_path: data/download/

@@ -77,19 +77,21 @@ def copy_to_windows_temp(file_path: str) -> str:
     shutil.copy(file_path, temp_file_path)
     return temp_file_path
 
+
 def create_logfile(filename: str) -> str:
-    current_datetime = datetime.now().isoformat(timespec='seconds').replace(':', '-')
+    current_datetime = datetime.now().isoformat(timespec="seconds").replace(":", "-")
     log_filename = f"logs/{filename}/{filename}_{current_datetime}.txt"
     os.makedirs(os.path.dirname(log_filename), exist_ok=True)
-    
+
     return log_filename
+
 
 def ask_month(months):
     # Let user choose or pick the latest month automatically
     print("Available months:")
     for i, month in enumerate(months):
         print(f"{i + 1}. {month}")
-    
+
     choice = input(
         f"Enter the number of the month to download (1-{len(months)}), or press Enter for latest: "
     )
@@ -98,5 +100,5 @@ def ask_month(months):
         selected_month = months[int(choice) - 1]
     else:
         selected_month = months[0]
-    
+
     return selected_month
