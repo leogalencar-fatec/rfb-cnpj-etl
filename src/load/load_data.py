@@ -1,3 +1,4 @@
+import logging
 import os
 from constants.table_fields import TABLE_FIELDS
 from transform.transform_data import TRANSFORMED_PATH
@@ -59,7 +60,7 @@ def drop_and_recreate_tables():
 
     cursor = mysql_conn.cursor()
 
-    print("Dropping existing tables...")
+    logging.info("Dropping existing tables...")
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
     # tables = ["socio", "simples", "estabelecimento", "empresa",
     #           "cnae", "motivo", "municipio", "natureza_juridica", "pais", "qualificacao_socio",
@@ -77,7 +78,7 @@ def drop_and_recreate_tables():
 
     cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
-    print("Recreating tables...")
+    logging.info("Recreating tables...")
     read_sql_file("src/sql/create_tables.sql")
 
     mysql_conn.commit()
@@ -110,10 +111,10 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
         ignore_lines = 1 if has_headers else 0
 
         if not file_path.endswith(".csv"):
-            print(f"Skipping invalid file: {file_path}")
+            logging.warning(f"Skipping invalid file: {file_path}")
             continue
 
-        print(
+        logging.info(
             f"Loading {file_path} into {table_name} table (headers: {has_headers})..."
         )
 
@@ -128,15 +129,25 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
         try:
             cursor.execute(sql)
             mysql_conn.commit()
-            print(f"Successfully loaded {file_path} into {table_name} table.")
+            logging.info(f"Successfully loaded {file_path} into {table_name} table.")
         except Exception as e:
             mysql_conn.rollback()
-            print(f"Failed to load {file_path}: {e}")
+            logging.error(f"Failed to load {file_path}: {e}")
 
     cursor.close()
 
 
 def read_sql_file(url: str):
+    """
+    Reads and executes SQL statements from a file.
+    Args:
+        url (str): The file path to the SQL file.
+    Raises:
+        IOError: If the file cannot be opened.
+        mysql.connector.Error: If there is an error executing any of the SQL statements.
+    """
+    
+    
     cursor = mysql_conn.cursor()
 
     with open(url, "r") as f:
@@ -148,7 +159,33 @@ def read_sql_file(url: str):
     cursor.close()
 
 
-def load_data(transformed_data: list[str] = []):
+def get_latest_transformed_data():
+    """
+    Retrieves the latest transformed data files from the specified directory.
+    This function lists the available months in the TRANSFORMED_PATH directory,
+    sorts them in reverse order (latest first), and either prompts the user to
+    select a month or automatically selects the latest month based on the
+    configuration settings. It then returns a list of file paths for the
+    transformed data files in the selected month.
+    Raises:
+        FileNotFoundError: If no available months are found in the TRANSFORMED_PATH directory.
+    Returns:
+        list: A list of file paths for the transformed data files in the selected month.
+    """
+    
+    
+    months = sorted(os.listdir(TRANSFORMED_PATH), reverse=True)
+    if not months:
+        raise FileNotFoundError("No available months found.")
+
+    month = ask_month(months) if config["settings"]["ask_user"] else months[0]
+    return [
+        os.path.join(TRANSFORMED_PATH, month, file)
+        for file in sorted(os.listdir(os.path.join(TRANSFORMED_PATH, month)))
+    ]
+
+
+def load_data(transformed_data: list[str] = None):
     """
     Loads transformed data into the database.
 
@@ -164,24 +201,11 @@ def load_data(transformed_data: list[str] = []):
     Returns:
         None
     """
-    
-    if not len(transformed_data) > 0:
-        # Getting available months
-        months = sorted(os.listdir(TRANSFORMED_PATH), reverse=True)
-        if not months:
-            print("No available months found.")
-            raise Exception("No available months found.")
+   
+    # Get latest transformed data 
+    transformed_data = transformed_data or get_latest_transformed_data()
 
-        if config["settings"]["ask_user"]:
-            month = ask_month(months)
-        else:
-            month = months[0]
-
-        transformed_data = [
-            os.path.join(TRANSFORMED_PATH, month, file)
-            for file in sorted(os.listdir(os.path.join(TRANSFORMED_PATH, month)))
-        ]
-
+    # Resetting database state
     drop_and_recreate_tables()
 
     # Insert data for id_tables
@@ -189,18 +213,15 @@ def load_data(transformed_data: list[str] = []):
 
     # Insert missing data on RFB
     read_sql_file("src/sql/missing_data.sql")
-    
-    log_filename = create_logfile("load")
 
     # Insert data from CSV
     for prefix, table in TABLES_TO_LOAD.items():
         files = get_separated_files(prefix, transformed_data)
         if files:
             load_csv_to_db(files, table)
-            with open(log_filename, "a") as log_file:
-                log_file.write(f"{table} OK\n")
+            logging.info(f"{table} loaded successfully.")
 
-    print("Data loading complete.")
+    logging.info("Data loading complete.")
 
     # Close connections
     mysql_conn.close()
