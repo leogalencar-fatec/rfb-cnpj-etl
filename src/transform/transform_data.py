@@ -37,7 +37,21 @@ def get_table_name(filename: str) -> str | None:
 
 
 def get_output_file_path(csv_file_path: str, table_name: str) -> str:
-    """Constructs the output file path based on input file structure."""
+    """
+    Generates the output file path for a transformed CSV file.
+    Args:
+        csv_file_path (str): The path to the input CSV file.
+        table_name (str): The name of the table to be used in the output file name.
+    Returns:
+        str: The generated output file path.
+    The output file path is constructed by:
+    1. Extracting the month from the directory name of the input CSV file.
+    2. Extracting the base name of the input CSV file.
+    3. Extracting the file number from the base name (if present).
+    4. Constructing the output file name using the table name and file number.
+    5. Joining the TRANSFORMED_PATH, month, and constructed file name to form the full output file path.
+    """
+
     month = os.path.basename(os.path.dirname(csv_file_path))
     base_name = os.path.basename(csv_file_path)
     file_number = "".join(filter(str.isdigit, base_name.split("_")[0]))
@@ -84,7 +98,15 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
 
 
 def filter_estabelecimentos_apta(df: pd.DataFrame) -> pd.DataFrame:
-    """Filters 'estabelecimento' rows where 'cod_situacao_cadastral' is '02' (APTA)."""
+    """
+    Filters the DataFrame to include only rows where the 'cod_situacao_cadastral' column has the value '02'.
+    Args:
+        df (pd.DataFrame): The input DataFrame containing establishment data.
+    Returns:
+        pd.DataFrame: A DataFrame filtered to include only establishments with 'cod_situacao_cadastral' equal to '02'.
+                      If the 'cod_situacao_cadastral' column is not present, the original DataFrame is returned.
+    """
+
     return (
         df[df["cod_situacao_cadastral"] == "02"]
         if "cod_situacao_cadastral" in df.columns
@@ -133,8 +155,20 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
 
 
 def remove_existing_files(csv_files_paths: list[str]):
-    """Removes old transformed CSV files before processing new ones."""
-    
+    """
+    Removes existing output files for the given list of CSV file paths.
+    This function checks if an output file already exists for each CSV file path
+    in the provided list. If an output file exists, it is deleted.
+    Args:
+        csv_files_paths (list[str]): A list of paths to CSV files.
+    Returns:
+        None
+    Logs:
+        - Info: When checking if an output file exists for a CSV file path.
+        - Warning: If the table name cannot be determined for a CSV file path.
+        - Info: When an old output file is deleted.
+    """
+
     for csv_file_path in csv_files_paths:
         logging.info(f"Checking if {csv_file_path} already has output file...")
 
@@ -149,8 +183,8 @@ def remove_existing_files(csv_files_paths: list[str]):
             os.remove(output_file)
             logging.info(f"Deleted old output file {output_file}.")
 
-# TODO : CONTINUAR REFATORANDO A PARTIR DAQUI
-def process_csv(csv_file_path: str) -> str:
+
+def process_csv(csv_file_path: str) -> str | None:
     """
     Processes a CSV file by reading it in chunks, cleaning the data, and writing the transformed data to a new CSV file.
 
@@ -159,6 +193,7 @@ def process_csv(csv_file_path: str) -> str:
     2. Reads the CSV file in chunks, with each chunk being processed separately.
     3. Cleans the data in each chunk using the `clean_dataframe` function.
     4. Writes the cleaned data to a new CSV file in the specified output directory.
+    5. Removes the original CSV file after processing is complete.
 
     Notes:
     - The CSV file is expected to be encoded in "latin-1" and use ";" as the separator.
@@ -170,21 +205,25 @@ def process_csv(csv_file_path: str) -> str:
     Args:
         csv_file_path (str): The path to the CSV file to be processed.
     Returns:
-        str or None: The path to the output file if processing is successful, otherwise None.
+        str | None: The path to the output file if processing is successful, otherwise None.
+    Raises:
+        Exception: If an error occurs during processing, logs the error and returns None.
     """
 
-    print(f"Processing {csv_file_path}...")
+    logging.info(f"Processing {csv_file_path}...")
 
     table_name = get_table_name(csv_file_path)
     if not table_name:
-        print(f"Warning: Could not determine table for {csv_file_path}, skipping.")
+        logging.warning(
+            f"Warning: Could not determine table for {csv_file_path}, skipping."
+        )
         return None
 
     output_file = get_output_file_path(csv_file_path, table_name)
     expected_columns = list(TABLE_FIELDS[table_name].keys())
 
-    first_chunk = True
     try:
+        first_chunk = True
         for chunk in pd.read_csv(
             csv_file_path,
             encoding="latin-1",
@@ -196,7 +235,7 @@ def process_csv(csv_file_path: str) -> str:
             chunksize=READ_CHUNK_SIZE,
         ):
             if len(chunk.columns) != len(expected_columns):
-                print(
+                logging.warning(
                     f"Warning: {csv_file_path} has {len(chunk.columns)} columns but expected {len(expected_columns)}. Skipping chunk."
                 )
                 continue
@@ -215,35 +254,36 @@ def process_csv(csv_file_path: str) -> str:
             first_chunk = False
 
         os.remove(csv_file_path)
-        print(f"Finished processing and removed {csv_file_path}.")
+        logging.info(f"Finished processing and removed {csv_file_path}.")
         return output_file
     except Exception as e:
-        print(f"Error processing {csv_file_path}: {e}")
+        logging.error(f"Error processing {csv_file_path}: {e}")
         return None
 
 
 def transform_data(csv_files_paths: list[str] = []) -> list[str]:
     """
-    Transforms a list of CSV files by processing each file and saving the transformed data.
-
+    Transforms the data from the given CSV file paths.
+    If no CSV file paths are provided, it will look for available months in the 
+    extraction path, ask the user to select a month (if configured to do so), 
+    and use the CSV files from the selected month.
     Args:
-        csv_files_paths (list[str]): A list of file paths to the CSV files to be transformed.
-
+        csv_files_paths (list[str], optional): List of paths to the CSV files to be transformed. 
+                                               Defaults to an empty list.
     Returns:
-        list[str]: A list of file paths to the transformed CSV files.
-
+        list[str]: List of paths to the transformed data files.
     Raises:
-        OSError: If there is an issue creating the output directory or removing existing files.
-
-    Example:
-        transformed_files = transform_data(['/path/to/file1.csv', '/path/to/file2.csv'])
+        Exception: If no available months are found in the extraction path.
+    Logs:
+        Logs the creation of each transformed file and the completion of the transformation process.
     """
+    
 
     if not len(csv_files_paths) > 0:
         # Getting available months
         months = sorted(os.listdir(EXTRACT_PATH), reverse=True)
         if not months:
-            print("No available months found.")
+            logging.error("No available months found.")
             raise Exception("No available months found.")
 
         if config["settings"]["ask_user"]:
@@ -260,19 +300,15 @@ def transform_data(csv_files_paths: list[str] = []) -> list[str]:
 
     transformed_path = os.path.join(TRANSFORMED_PATH, month)
     os.makedirs(transformed_path, exist_ok=True)
-
     remove_existing_files(csv_files_paths)
-
-    log_filename = create_logfile("cleaned")
 
     transformed_data = []
 
     for csv_file_path in csv_files_paths:
         output_file = process_csv(csv_file_path)
         if output_file:
-            with open(log_filename, "a") as log_file:
-                log_file.write(f"{output_file} OK\n")
+            logging.info(f"{output_file} created.")
             transformed_data.append(output_file)
 
-    print("Transformation completed!")
+    logging.info("Transformation completed!")
     return transformed_data
