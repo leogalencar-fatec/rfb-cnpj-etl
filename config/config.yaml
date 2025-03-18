@@ -8,8 +8,8 @@ database:
   type: mysql
   username: root
 logging:
-  log_path: logs/
   log_level: INFO
+  log_path: logs/
 paths:
   download_path: data/download/
   extract_path: data/extract/

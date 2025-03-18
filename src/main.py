@@ -16,17 +16,16 @@ LOG_FILE_PATH = config["logging"]["log_path"]
 
 def setup_logging():
     """Configure logging settings for the application."""
-    current_datetime = datetime.now().isoformat(timespec='seconds').replace(':', '-')
+    current_datetime = datetime.datetime.now().isoformat(timespec='seconds').replace(':', '-')
     log_filename = f"{current_datetime}.log"
     log_filepath = os.path.join(LOG_FILE_PATH, log_filename)
     
     logging.basicConfig(
-        filename=log_filename,
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.logging.FileHandler(log_filepath),
-            logging.logging.StreamHandler()
+            logging.FileHandler(log_filepath),
+            logging.StreamHandler()
         ],
     )
 
@@ -50,10 +49,10 @@ def execute_interactive():
     }
 
     while True:
-        logging.info("\nSelect a step to execute:")
+        print("\nSelect a step to execute:")
         for num, (name, _) in steps.items():
-            logging.info(f"{num}. {name}")
-        logging.info("0. Exit")
+            print(f"{num}. {name}")
+        print("0. Exit")
 
         try:
             choice = int(input("Step to execute: ").strip())
@@ -64,9 +63,9 @@ def execute_interactive():
                 step_function()
                 logging.info(f"{step_name} completed successfully.")
             else:
-                logging.warning("Invalid choice. Please select a valid step.")
+                print("Invalid choice. Please select a valid step.")
         except ValueError:
-            logging.error("Invalid input. Please enter a number.")
+            print("Invalid input. Please enter a number.")
 
 def main():
     """Main function to execute the ETL pipeline."""
