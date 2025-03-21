@@ -77,6 +77,15 @@ class MySQLConn:
                 port=self.port,
             )
         return self.conn
+    
+    def create_new_connection(self):
+        return mysql.connector.connect(
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            database=self.database,
+            port=self.port,
+        )
 
     def close_connection(self):
         if self.conn is not None:

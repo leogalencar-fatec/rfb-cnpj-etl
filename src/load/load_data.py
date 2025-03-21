@@ -1,5 +1,7 @@
 import logging
 import os
+
+import concurrent.futures
 from constants.table_fields import TABLE_FIELDS
 from transform.transform_data import TRANSFORMED_PATH
 from utils.helpers import ask_month, create_logfile, load_config
@@ -25,7 +27,6 @@ TABLES_TO_LOAD = {
 # Database connections
 mysql_conn = MYSQL_CONN.get_connection()
 sql_alchemy_conn = SQL_ALCHEMY_MYSQL_CONN.get_session()
-
 
 def get_separated_files(name: str, data: list[str]) -> list[str]:
     """
@@ -85,6 +86,74 @@ def drop_and_recreate_tables():
     cursor.close()
 
 
+# def load_csv_file(file_path: str, table_name: str, mysql_conn_factory):
+#     """
+#     Load a single CSV file into a specified database table.
+
+#     Args:
+#         file_path (str): The path to the CSV file to be loaded.
+#         table_name (str): The name of the database table into which the data will be loaded.
+#         mysql_conn_factory (callable): A factory function to create a new MySQL connection.
+#     Raises:
+#         Exception: If there is an error during the loading process, an exception will be raised
+#                    and the error message will be printed.
+#     Example:
+#         load_csv_file('/path/to/file.csv', 'my_table', MYSQL_CONN.create_new_connection)
+#     """
+
+#     conn = mysql_conn_factory()
+#     cursor = conn.cursor()
+
+#     if not file_path.endswith(".csv"):
+#         logging.warning(f"Skipping invalid file: {file_path}")
+#         return
+
+#     logging.info(f"Loading {file_path} into {table_name} table...")
+
+#     sql = f"""
+#     LOAD DATA LOCAL INFILE '{file_path}'
+#     INTO TABLE {table_name}
+#     FIELDS TERMINATED BY ';'
+#     ENCLOSED BY '"'
+#     LINES TERMINATED BY '\\n'
+#     IGNORE 1 LINES;
+#     """
+#     try:
+#         cursor.execute(sql)
+#         conn.commit()
+#         logging.info(f"Successfully loaded {file_path} into {table_name} table.")
+#     except Exception as e:
+#         conn.rollback()
+#         logging.error(f"Failed to load {file_path}: {e}")
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+
+# def load_csv_files_in_parallel(
+#     file_paths: list[str], table_name: str, mysql_conn_factory
+# ):
+#     """
+#     Load multiple CSV files into a specified database table in parallel.
+
+#     Args:
+#         file_paths (list[str]): A list of file paths to the CSV files to be loaded.
+#         table_name (str): The name of the database table into which the data will be loaded.
+#         mysql_conn_factory (callable): A factory function to create a new MySQL connection.
+#     """
+
+#     with concurrent.futures.ThreadPoolExecutor() as executor:
+#         futures = [
+#             executor.submit(load_csv_file, file_path, table_name, mysql_conn_factory)
+#             for file_path in file_paths
+#         ]
+#         for future in concurrent.futures.as_completed(futures):
+#             try:
+#                 future.result()
+#             except Exception as e:
+#                 logging.error(f"Error loading file: {e}")
+
+
 def load_csv_to_db(file_paths: list[str], table_name: str):
     """
     Load CSV files into a specified database table.
@@ -104,18 +173,14 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
     """
 
     cursor = mysql_conn.cursor()
-    
 
     for index, file_path in enumerate(file_paths):
-        has_headers = index == 0  # Only first file has headers
-        ignore_lines = 1 if has_headers else 0
-
         if not file_path.endswith(".csv"):
             logging.warning(f"Skipping invalid file: {file_path}")
             continue
 
         logging.info(
-            f"Loading {file_path} into {table_name} table (headers: {has_headers})..."
+            f"{table_name.upper()} ({index + 1}/{len(file_paths)}) - Loading {file_path} into {table_name} table..."
         )
 
         sql = f"""
@@ -124,37 +189,45 @@ def load_csv_to_db(file_paths: list[str], table_name: str):
         FIELDS TERMINATED BY ';'
         ENCLOSED BY '"'
         LINES TERMINATED BY '\\n'
-        IGNORE {ignore_lines} LINES;
+        IGNORE 1 LINES;
         """
         try:
             cursor.execute(sql)
             mysql_conn.commit()
-            logging.info(f"Successfully loaded {file_path} into {table_name} table.")
+            logging.info(
+                f"{table_name.upper()} ({index + 1}/{len(file_paths)}) - Successfully loaded {file_path} into {table_name} table."
+            )
         except Exception as e:
             mysql_conn.rollback()
-            logging.error(f"Failed to load {file_path}: {e}")
+            logging.error(
+                f"{table_name.upper()} ({index + 1}/{len(file_paths)}) - Failed to load {file_path}: {e}"
+            )
 
     cursor.close()
 
 
-def read_sql_file(url: str):
+def read_sql_file(url: str, delimiter: str = ";", multiple: bool = False):
     """
     Reads and executes SQL statements from a file.
     Args:
         url (str): The file path to the SQL file.
+        delimiter (str): The delimiter used to separate SQL statements.
+        multiple (bool): If True, executes multiple SQL statements in a single call.
     Raises:
         IOError: If the file cannot be opened.
         mysql.connector.Error: If there is an error executing any of the SQL statements.
     """
-    
-    
+
     cursor = mysql_conn.cursor()
 
     with open(url, "r") as f:
         sql_script = f.read()
-        for statement in sql_script.split(";"):
-            if statement.strip():
-                cursor.execute(statement)
+        if not multiple:
+            for statement in sql_script.split(delimiter):
+                if statement.strip():
+                    cursor.execute(statement)
+        else:
+            cursor.execute(sql_script, multi=True)
 
     cursor.close()
 
@@ -172,8 +245,7 @@ def get_latest_transformed_data():
     Returns:
         list: A list of file paths for the transformed data files in the selected month.
     """
-    
-    
+
     months = sorted(os.listdir(TRANSFORMED_PATH), reverse=True)
     if not months:
         raise FileNotFoundError("No available months found.")
@@ -201,12 +273,15 @@ def load_data(transformed_data: list[str] = None):
     Returns:
         None
     """
-   
-    # Get latest transformed data 
+
+    # Get latest transformed data
     transformed_data = transformed_data or get_latest_transformed_data()
 
     # Resetting database state
     drop_and_recreate_tables()
+    
+    # Creating triggers
+    read_sql_file("src/sql/create_triggers.sql")
 
     # Insert data for id_tables
     read_sql_file("src/sql/default_insert.sql")
@@ -218,6 +293,7 @@ def load_data(transformed_data: list[str] = None):
     for prefix, table in TABLES_TO_LOAD.items():
         files = get_separated_files(prefix, transformed_data)
         if files:
+            # load_csv_to_db(files, table)
             load_csv_to_db(files, table)
             logging.info(f"{table} loaded successfully.")
 

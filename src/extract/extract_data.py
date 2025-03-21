@@ -136,6 +136,7 @@ def download_all_zips(month: str) -> list[str]:
         list[str]: A list of file paths for the downloaded ZIP files.
     """
     zip_urls = get_zip_files(month)
+    # zip_urls = zip_urls[:1] + zip_urls[2:3] + zip_urls[12:13] + zip_urls[21:27] + zip_urls[28:29]  # TESTING
     month_dir = os.path.join(DOWNLOAD_PATH, month)
     os.makedirs(month_dir, exist_ok=True)
 
@@ -188,7 +189,6 @@ def extract_zip_files(zip_files: list[str], month: str) -> list[str]:
     extract_path = os.path.join(EXTRACT_PATH, month)
     os.makedirs(extract_path, exist_ok=True)
 
-    log_filename = create_logfile("extract")
     extracted_files = []
 
     for zip_file in zip_files:
@@ -206,9 +206,6 @@ def extract_zip_files(zip_files: list[str], month: str) -> list[str]:
                         # Read and write file in 64KB chunks to handle large files efficiently
                         for chunk in iter(lambda: source.read(65536), b""):
                             target.write(chunk)
-
-                    with open(log_filename, "a") as log_file:
-                        log_file.write(f"{cleaned_path} OK\n")
 
                     logging.info(f"Extracted and cleaned {name} to {cleaned_path}")
 

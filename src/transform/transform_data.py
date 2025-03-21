@@ -264,11 +264,11 @@ def process_csv(csv_file_path: str) -> str | None:
 def transform_data(csv_files_paths: list[str] = []) -> list[str]:
     """
     Transforms the data from the given CSV file paths.
-    If no CSV file paths are provided, it will look for available months in the 
-    extraction path, ask the user to select a month (if configured to do so), 
+    If no CSV file paths are provided, it will look for available months in the
+    extraction path, ask the user to select a month (if configured to do so),
     and use the CSV files from the selected month.
     Args:
-        csv_files_paths (list[str], optional): List of paths to the CSV files to be transformed. 
+        csv_files_paths (list[str], optional): List of paths to the CSV files to be transformed.
                                                Defaults to an empty list.
     Returns:
         list[str]: List of paths to the transformed data files.
@@ -277,7 +277,6 @@ def transform_data(csv_files_paths: list[str] = []) -> list[str]:
     Logs:
         Logs the creation of each transformed file and the completion of the transformation process.
     """
-    
 
     if not len(csv_files_paths) > 0:
         # Getting available months

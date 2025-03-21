@@ -99,13 +99,15 @@ CREATE TABLE estabelecimento (
     correio_eletronico TEXT,
     situacao_especial TEXT,
     data_situacao_especial DATE,
+    cnpj_completo VARCHAR(14) GENERATED ALWAYS AS (CONCAT(cnpj_basico, cnpj_ordem, cnpj_dv)) STORED,
     PRIMARY KEY (cnpj_basico, cnpj_ordem, cnpj_dv, uf),
     INDEX idx_estabelecimento_municipio (cod_municipio),
     INDEX idx_estabelecimento_cnae (cod_cnae_fiscal),
     INDEX idx_estabelecimento_pais (cod_pais),
     INDEX idx_estabelecimento_matriz (cod_id_matriz_filial),
     INDEX idx_estabelecimento_situacao (cod_situacao_cadastral),
-    INDEX idx_estabelecimento_motivo (cod_motivo_situacao_cadastral)
+    INDEX idx_estabelecimento_motivo (cod_motivo_situacao_cadastral),
+    INDEX idx_estabelecimento_cnpj_completo (cnpj_completo)
 ) PARTITION BY LIST COLUMNS(uf) (
     PARTITION p_norte VALUES IN ('AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'),
     PARTITION p_nordeste VALUES IN ('AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'),
