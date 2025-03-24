@@ -1,12 +1,13 @@
 data_source:
   base_url: https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/
 database:
-  database_name: brazil_cnpj
-  host: 10.0.0.23
-  password: ''
-  port: 3306
-  type: mysql
-  username: root
+  # Change the values below to match your database configuration
+  database_name: my_database
+  host: db_host
+  password: db_password
+  port: db_port
+  type: mysql  # DEFAULT: mysql
+  username: db_user
 logging:
   log_level: INFO
   log_path: logs/
@@ -15,8 +16,8 @@ paths:
   extract_path: data/extract/
   transformed_path: data/cleaned/
 performance:
-  read_chunk_size: 10000
-  write_chunk_size: 10000
+  read_chunk_size: 10000  # DEFAULT: 10000
+  write_chunk_size: 10000  # DEFAULT: 10000
 settings:
-  ask_user: true
-  estabelecimentos_apta_only: true
+  ask_user: true  # set true to use interactive mode, false to use batch mode
+  estabelecimentos_apta_only: false

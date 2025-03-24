@@ -10,8 +10,9 @@ pandas==2.2.3
 psycopg2-binary==2.9.10
 python-dateutil==2.9.0.post0
 pytz==2025.1
-PyYAML==6.0.2
 requests==2.32.3
+ruamel.yaml==0.18.10
+ruamel.yaml.clib==0.2.12
 six==1.17.0
 soupsieve==2.6
 SQLAlchemy==2.0.39

@@ -1,7 +1,6 @@
 import logging
 import os
 
-import concurrent.futures
 from constants.table_fields import TABLE_FIELDS
 from transform.transform_data import TRANSFORMED_PATH
 from utils.helpers import ask_month, create_logfile, load_config
@@ -84,74 +83,6 @@ def drop_and_recreate_tables():
 
     mysql_conn.commit()
     cursor.close()
-
-
-# def load_csv_file(file_path: str, table_name: str, mysql_conn_factory):
-#     """
-#     Load a single CSV file into a specified database table.
-
-#     Args:
-#         file_path (str): The path to the CSV file to be loaded.
-#         table_name (str): The name of the database table into which the data will be loaded.
-#         mysql_conn_factory (callable): A factory function to create a new MySQL connection.
-#     Raises:
-#         Exception: If there is an error during the loading process, an exception will be raised
-#                    and the error message will be printed.
-#     Example:
-#         load_csv_file('/path/to/file.csv', 'my_table', MYSQL_CONN.create_new_connection)
-#     """
-
-#     conn = mysql_conn_factory()
-#     cursor = conn.cursor()
-
-#     if not file_path.endswith(".csv"):
-#         logging.warning(f"Skipping invalid file: {file_path}")
-#         return
-
-#     logging.info(f"Loading {file_path} into {table_name} table...")
-
-#     sql = f"""
-#     LOAD DATA LOCAL INFILE '{file_path}'
-#     INTO TABLE {table_name}
-#     FIELDS TERMINATED BY ';'
-#     ENCLOSED BY '"'
-#     LINES TERMINATED BY '\\n'
-#     IGNORE 1 LINES;
-#     """
-#     try:
-#         cursor.execute(sql)
-#         conn.commit()
-#         logging.info(f"Successfully loaded {file_path} into {table_name} table.")
-#     except Exception as e:
-#         conn.rollback()
-#         logging.error(f"Failed to load {file_path}: {e}")
-#     finally:
-#         cursor.close()
-#         conn.close()
-
-
-# def load_csv_files_in_parallel(
-#     file_paths: list[str], table_name: str, mysql_conn_factory
-# ):
-#     """
-#     Load multiple CSV files into a specified database table in parallel.
-
-#     Args:
-#         file_paths (list[str]): A list of file paths to the CSV files to be loaded.
-#         table_name (str): The name of the database table into which the data will be loaded.
-#         mysql_conn_factory (callable): A factory function to create a new MySQL connection.
-#     """
-
-#     with concurrent.futures.ThreadPoolExecutor() as executor:
-#         futures = [
-#             executor.submit(load_csv_file, file_path, table_name, mysql_conn_factory)
-#             for file_path in file_paths
-#         ]
-#         for future in concurrent.futures.as_completed(futures):
-#             try:
-#                 future.result()
-#             except Exception as e:
-#                 logging.error(f"Error loading file: {e}")
 
 
 def load_csv_to_db(file_paths: list[str], table_name: str):
@@ -281,19 +212,21 @@ def load_data(transformed_data: list[str] = None):
     drop_and_recreate_tables()
     
     # Creating triggers
+    logging.info("Creating triggers...")
     read_sql_file("src/sql/create_triggers.sql")
 
     # Insert data for id_tables
+    logging.info("Inserting default data...")
     read_sql_file("src/sql/default_insert.sql")
 
     # Insert missing data on RFB
+    logging.info("Inserting missing data...")
     read_sql_file("src/sql/missing_data.sql")
 
     # Insert data from CSV
     for prefix, table in TABLES_TO_LOAD.items():
         files = get_separated_files(prefix, transformed_data)
         if files:
-            # load_csv_to_db(files, table)
             load_csv_to_db(files, table)
             logging.info(f"{table} loaded successfully.")
 

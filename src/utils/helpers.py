@@ -1,10 +1,12 @@
 import os
 import shutil
 import subprocess
-import yaml
+from ruamel.yaml import YAML
 from datetime import datetime
 
 CONFIG_PATH = "config/config.yaml"
+yaml = YAML()
+yaml.preserve_quotes = True
 
 
 def log_message(message):
@@ -42,14 +44,14 @@ def load_config(config_path=CONFIG_PATH):
         yaml.YAMLError: If there is an error parsing the YAML file.
     """
     with open(config_path, "r") as file:
-        config = yaml.safe_load(file)
+        config = yaml.load(file)
     return config
 
 
 def save_config(config, config_path=CONFIG_PATH):
     """Saves updated configuration back to config.yaml"""
     with open(config_path, "w") as file:
-        yaml.safe_dump(config, file)
+        yaml.dump(config, file)
 
 
 def is_running_in_wsl() -> bool:
