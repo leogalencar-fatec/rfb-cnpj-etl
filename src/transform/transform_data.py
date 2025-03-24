@@ -1,5 +1,6 @@
 import csv
 import logging
+import numpy as np
 import pandas as pd
 import os
 from constants.csv_table_mapping import CSV_TABLE_MAPPING
@@ -133,8 +134,8 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     # Remove leading/trailing whitespace from string columns
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # Replace empty strings with NaN
-    df.replace("", pd.NA, inplace=True)
+    # Replace empty strings, NaN, None with \N (NULL in MySQL)
+    df = df.replace({"": r"\N", np.nan: r"\N", pd.NA: r"\N", None: r"\N"})
 
     # Drop duplicate rows
     df.drop_duplicates(inplace=True)

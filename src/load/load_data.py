@@ -211,10 +211,6 @@ def load_data(transformed_data: list[str] = None):
     # Resetting database state
     drop_and_recreate_tables()
     
-    # Creating triggers
-    logging.info("Creating triggers...")
-    read_sql_file("src/sql/create_triggers.sql")
-
     # Insert data for id_tables
     logging.info("Inserting default data...")
     read_sql_file("src/sql/default_insert.sql")
