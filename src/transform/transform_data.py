@@ -92,6 +92,9 @@ def enforce_dtypes(df: pd.DataFrame, dtype_mapping: dict[str, str]) -> pd.DataFr
                     .str.lower()
                     .map({"true": True, "false": False, "1": True, "0": False})
                 )
+            elif pandas_dtype == "datetime64[ns]":
+                df[col] = df[col].replace(["0", "", "0000-00-00"], r"\N")
+                
         except Exception as e:
             logging.warning(f"Could not convert {col} to {pandas_dtype}: {e}")
 
@@ -136,7 +139,7 @@ def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
 
     # Replace empty strings, NaN, None with \N (NULL in MySQL)
     df = df.replace({"": r"\N", np.nan: r"\N", pd.NA: r"\N", None: r"\N"})
-
+    
     # Drop duplicate rows
     df.drop_duplicates(inplace=True)
 
