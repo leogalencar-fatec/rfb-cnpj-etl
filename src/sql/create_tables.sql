@@ -1,3 +1,10 @@
+-- Logging tables
+CREATE TABLE IF NOT EXISTS load_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    selected_year_month VARCHAR(7) NOT NULL,
+    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
 -- Lookup Tables
 CREATE TABLE pais (
     codigo VARCHAR(3) PRIMARY KEY,

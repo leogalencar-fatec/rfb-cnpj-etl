@@ -160,6 +160,7 @@ def read_sql_file(url: str, delimiter: str = ";", multiple: bool = False):
         else:
             cursor.execute(sql_script, multi=True)
 
+    mysql_conn.commit()
     cursor.close()
 
 
@@ -188,6 +189,27 @@ def get_latest_transformed_data():
     ]
 
 
+def log_dataload(month: str):
+    """
+    Logs the data load operation for a specific month into the database.
+    This function inserts a record into the `load_log` table with the provided
+    year and month, indicating that a data load operation has been performed.
+    Args:
+        month (str): The year and month in the format 'YYYY-MM' to be logged.
+    Raises:
+        mysql.connector.Error: If there is an issue with the database connection
+        or the execution of the query.
+    """
+    
+    cursor = mysql_conn.cursor()
+    
+    query = "INSERT INTO load_log (selected_year_month) VALUES (%s);"
+    cursor.execute(query, month)
+
+    mysql_conn.commit()
+    cursor.close()
+    
+    
 def load_data(transformed_data: list[str] = None):
     """
     Loads transformed data into the database.
@@ -207,6 +229,7 @@ def load_data(transformed_data: list[str] = None):
 
     # Get latest transformed data
     transformed_data = transformed_data or get_latest_transformed_data()
+    month = transformed_data[0].split("/")
 
     # Resetting database state
     drop_and_recreate_tables()
@@ -225,7 +248,10 @@ def load_data(transformed_data: list[str] = None):
         if files:
             load_csv_to_db(files, table)
             logging.info(f"{table} loaded successfully.")
-
+    
+    logging.info("Saving load log...")
+    log_dataload(month)
+    
     logging.info("Data loading complete.")
 
     # Close connections
